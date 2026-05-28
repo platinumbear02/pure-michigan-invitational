@@ -1017,7 +1017,7 @@ function HistoryPage() {
             <span className="hr-yr">{h.year}</span>
             <span className="hr-venue">{h.venue}</span>
             <span className={`hr-win ${isUSAWin(h)?"winner-usa":"winner-eur"}`}>{h.w}</span>
-            <span className="hr-caps">{h.captains!=="—"?h.captains:<span style={{color:"var(--muted)"}}>—</span>}</span>
+            <span className="hr-caps">{h.captains}</span>
           </div>
         ))}
       </div>
@@ -1048,6 +1048,8 @@ function HistoryPage() {
         ))}
         <div className="prize-note" style={{marginTop:8}}>★ 2023: Ed won both MVG and Ratliff — a truly historic achievement 😂</div>
       </div>
+      <div className="card" style={{marginTop:10}}>
+        <div className="card-title">🏆 Most Titles</div>
         {cr.slice(0,8).map((p,i)=>(
           <div key={p.id} className="rank-row">
             <span className="rr-pos">#{i+1}</span>
