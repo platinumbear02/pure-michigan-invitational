@@ -1,2 +1,2 @@
 # pmi-golf
-TEST 1
+TEST
