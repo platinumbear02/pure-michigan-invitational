@@ -333,7 +333,7 @@ const PLAYERS = [
   {id:"kevin", name:"Kevin", hcp:32, av:"KV",color:USA_RED, textColor:USA_BLUE,team:"USA"},
 ];
 
-// mvg = Most Valuable Golfer wins · rvg = Ratliff Award (LVG) wins — send real counts to update
+// mvg = Most Valuable Golfer wins · rvg = Ratliff Award (LVG) wins
 const CAREER = {
   john:  {years:3, titles:1, w:5, l:7, t:0,sw:1,sl:2,st:0,avg:83.7,tier:"Tier 1A",low:"80 · Legend '23",     high:"87 · Hawk's Eye '23", money:"$453",  mvg:0,rvg:0},
   ron:   {years:15,titles:8, w:34,l:14,t:7,sw:9,sl:4,st:1,avg:83.0,tier:"Tier 1B",low:"78 · Torch '16",      high:"92 · Sundance '12",   money:"$1,302",mvg:3,rvg:0},
@@ -346,17 +346,16 @@ const CAREER = {
   skylar:{years:10,titles:4, w:18,l:19,t:2,sw:4,sl:5,st:1,avg:88.0,tier:"Tier 4", low:"83 · Sundance '19",   high:"101 · Torch '17",     money:"$640",  mvg:0,rvg:2},
   bk:    {years:2, titles:1, w:4, l:3, t:1,sw:1,sl:1,st:0,avg:92.7,tier:"Tier 2", low:"84 · Cedar '24",      high:"99 · Revenge '25",    money:"$108",  mvg:0,rvg:0},
   jp:    {years:15,titles:8, w:24,l:26,t:5,sw:7,sl:7,st:0,avg:91.0,tier:"Tier 2", low:"79 · Hawk's Eye '23", high:"102 · Sundance '12",  money:"$906",  mvg:0,rvg:0},
-  __PLACEHOLDER_jimmy__:2, titles:1, w:2, l:5, t:1,sw:0,sl:1,st:1,avg:96.3,tier:"Tier 5", low:"91 · Schuss '24",     high:"103 · Revenge '25",   money:"$91",   mvg:0,rvg:0},
+  jimmy: {years:2, titles:1, w:2, l:5, t:1,sw:0,sl:1,st:1,avg:96.3,tier:"Tier 5", low:"91 · Schuss '24",     high:"103 · Revenge '25",   money:"$91",   mvg:0,rvg:0},
   pete:  {years:14,titles:5, w:21,l:24,t:6,sw:6,sl:5,st:2,avg:91.3,tier:"Tier 3", low:"82 · Sundance '15",   high:"104 · Antrim '20",    money:"$890",  mvg:1,rvg:0},
   phil:  {years:13,titles:4, w:26,l:21,t:4,sw:7,sl:6,st:0,avg:92.0,tier:"Tier 2", low:"83 · Sundance '16",   high:"104 · Schuss '24",    money:"$1,100",mvg:1,rvg:1},
   dan:   {years:15,titles:6, w:20,l:31,t:1,sw:7,sl:7,st:0,avg:98.3,tier:"Tier 3", low:"87 · Schuss '24",     high:"110 · Antrim '20",    money:"$863",  mvg:0,rvg:1},
   rich:  {years:15,titles:10,w:21,l:29,t:5,sw:5,sl:8,st:1,avg:100.0,tier:"Tier 4",low:"88 · Sundance '15",   high:"115 · Cedar '22",     money:"$993",  mvg:0,rvg:0},
-  __PLACEHOLDER_eddie__:9, titles:6, w:14,l:16,t:5,sw:2,sl:5,st:2,avg:106.0,tier:"Tier 4",low:"97 · Cedar '22",      high:"119 · Cedar '24",     money:"$610",  mvg:0,rvg:0},
-  __PLACEHOLDER_louie__:8, titles:3, w:12,l:17,t:2,sw:0,sl:8,st:0,avg:110.3,tier:"Tier 5",low:"99 · Torch '17",      high:"126 · Cedar '22",     money:"$593",  mvg:0,rvg:0},
+  eddie: {years:9, titles:6, w:14,l:16,t:5,sw:2,sl:5,st:2,avg:106.0,tier:"Tier 4",low:"97 · Cedar '22",      high:"119 · Cedar '24",     money:"$610",  mvg:0,rvg:1},
+  louie: {years:8, titles:3, w:12,l:17,t:2,sw:0,sl:8,st:0,avg:110.3,tier:"Tier 5",low:"99 · Torch '17",      high:"126 · Cedar '22",     money:"$593",  mvg:0,rvg:0},
   mike:  {years:10,titles:5, w:21,l:13,t:5,sw:7,sl:3,st:0,avg:110.0,tier:"Tier 1B",low:"97 · Torch '17",     high:"126 · Cedar '19",     money:"$1,081",mvg:2,rvg:0},
-  __PLACEHOLDER_kevin__:9, titles:5, w:12,l:17,t:6,sw:1,sl:6,st:2,avg:112.7,tier:"Tier 5",low:"105 · Torch '17",     high:"135 · Sundance '19",  money:"$788",  mvg:0,rvg:0},
+  kevin: {years:9, titles:5, w:12,l:17,t:6,sw:1,sl:6,st:2,avg:112.7,tier:"Tier 5",low:"105 · Torch '17",     high:"135 · Sundance '19",  money:"$788",  mvg:0,rvg:1},
 };
-
 const HISTORY=[
   {year:2011,w:"Team Sears",  venue:"A-Ga-Ming",        captains:"Ron · JP"},
   {year:2012,w:"Team Europe", venue:"A-Ga-Ming",        captains:"Ron · JP"},
