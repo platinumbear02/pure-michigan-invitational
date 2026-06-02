@@ -677,25 +677,60 @@ function calcStrokes(ids, courseKey) {
 }
 
 function scoreMatch(holeScores, strokeSets, courseKey, isSingles) {
-  const results=[]; const statuses=[]; let aUp=0;
+  const results=[]; const statuses=[];
+  let aUp=0;
+  let matchOver=false;   // true once result is mathematically decided
+  let lockedResult=null; // frozen result string e.g. "USA WON 3&2"
+
   for(let i=0;i<18;i++){
     const s=holeScores[i];
-    if(s.some(v=>v===null)){results.push(null);statuses.push(null);continue;}
+
+    // Always record hole W/L/H for skins — even after match is decided
+    if(s.some(v=>v===null)){
+      results.push(null);
+      statuses.push(matchOver?lockedResult:null);
+      continue;
+    }
+
     const net=s.map((g,pi)=>g-(strokeSets[pi].has(i)?1:0));
     const aS=isSingles?net[0]:Math.min(net[0],net[1]);
     const bS=isSingles?net[1]:Math.min(net[2],net[3]);
-    let r;
-    if(aS<bS){r="A";aUp++;}else if(bS<aS){r="B";aUp--;}else r="H";
-    results.push(r);
+    const holeRes = aS<bS?"A":bS<aS?"B":"H";
+    results.push(holeRes);
+
+    // If match already decided, freeze status — don't update aUp
+    if(matchOver){
+      statuses.push(lockedResult);
+      continue;
+    }
+
+    // Update running score only while match is live
+    if(holeRes==="A") aUp++;
+    else if(holeRes==="B") aUp--;
+
     const left=17-i;
     let st;
-    if(Math.abs(aUp)>left) st=aUp>0?`USA WON ${aUp}&${left}`:`EUR WON ${Math.abs(aUp)}&${left}`;
-    else if(left===0) st=aUp>0?"USA WON 1UP":aUp<0?"EUR WON 1UP":"HALVED";
-    else if(Math.abs(aUp)===left) st=aUp>0?`USA DORMY ${aUp}`:`EUR DORMY ${Math.abs(aUp)}`;
-    else st=aUp>0?`USA ${aUp}UP`:aUp<0?`EUR ${Math.abs(aUp)}UP`:"AS";
+    if(Math.abs(aUp)>left){
+      // Match decided — lock the result
+      st=aUp>0?`USA WON ${aUp}&${left}`:`EUR WON ${Math.abs(aUp)}&${left}`;
+      matchOver=true;
+      lockedResult=st;
+    } else if(left===0){
+      // All 18 played — final hole decided it
+      st=aUp>0?"USA WON 1UP":aUp<0?"EUR WON 1UP":"HALVED";
+    } else if(Math.abs(aUp)===left){
+      st=aUp>0?`USA DORMY ${aUp}`:`EUR DORMY ${Math.abs(aUp)}`;
+    } else {
+      st=aUp>0?`USA ${aUp}UP`:aUp<0?`EUR ${Math.abs(aUp)}UP`:"AS";
+    }
     statuses.push(st);
   }
-  return {results,statuses,final:statuses.filter(Boolean).at(-1)??"AS"};
+
+  return {
+    results,
+    statuses,
+    final: lockedResult ?? (statuses.filter(Boolean).at(-1) ?? "AS")
+  };
 }
 
 function defaultPairings(r) {
