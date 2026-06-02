@@ -402,6 +402,153 @@ const MVG_HISTORY=[
   {year:2025,mvg:"Vassas", rat:"Kevin"},
 ];
 
+
+// ─── Money & Scoring Helpers ─────────────────────────────────────────────────
+
+// Full handicap net score for field-wide skins (uses player's full PMI hcp)
+function fieldNetScore(grossScore, playerId, holeIdx, courseKey) {
+  if (grossScore === null) return null;
+  const p = byId(playerId);
+  if (!p) return null;
+  const hcp = p.hcp;
+  const hcpRank = COURSES[courseKey].hcp[holeIdx]; // 1=hardest
+  const base = Math.floor(hcp / 18);
+  const extra = hcp % 18;
+  const strokes = base + (hcpRank <= extra ? 1 : 0);
+  return grossScore - strokes;
+}
+
+// Collect all player gross scores for a round: {playerId: [s0..s17]}
+function getPlayerScores(scores, pairings, roundId) {
+  const r = ROUNDS.find(x => x.id === roundId);
+  const result = {};
+  pairings[roundId].forEach((match, mi) => {
+    const ids = r.singles ? [match.teamA[0], match.teamB[0]] : [...match.teamA, ...match.teamB];
+    ids.forEach((id, pi) => {
+      if (!id) return;
+      result[id] = Array.from({length:18}, (_, hi) => scores[roundId][mi][hi][pi]);
+    });
+  });
+  return result;
+}
+
+// Calculate field-wide skins for one round, gross or net
+// Returns array of {holeIdx, winnerId, score} or null per hole
+function calcSkinsForRound(scores, pairings, roundId, type) {
+  const r = ROUNDS.find(x => x.id === roundId);
+  const playerScores = getPlayerScores(scores, pairings, roundId);
+  const playerIds = Object.keys(playerScores);
+  const skins = [];
+  for (let hi = 0; hi < 18; hi++) {
+    const holeScores = playerIds
+      .map(id => {
+        const g = playerScores[id][hi];
+        const s = type === 'net' ? fieldNetScore(g, id, hi, r.course) : g;
+        return {id, s};
+      })
+      .filter(x => x.s !== null);
+    if (holeScores.length < playerIds.length) { skins.push(null); continue; } // not all scored
+    const min = Math.min(...holeScores.map(x => x.s));
+    const winners = holeScores.filter(x => x.s === min);
+    skins.push(winners.length === 1 ? {holeIdx:hi, winnerId:winners[0].id, score:min} : null);
+  }
+  return skins;
+}
+
+// All rounds skins: $125/round pot — skin value = $125 / skins won that round
+function calcAllSkins(scores, pairings, type) {
+  const POT_PER_ROUND = 125; // $500 total / 4 rounds
+  const allSkins = [];
+  ROUNDS.forEach(r => {
+    const roundSkins = calcSkinsForRound(scores, pairings, r.id, type);
+    const roundWon = roundSkins.filter(Boolean).length;
+    const skinValue = roundWon > 0 ? POT_PER_ROUND / roundWon : 0;
+    roundSkins.forEach(s => {
+      if(s) allSkins.push({...s, roundId:r.id, skinValue});
+    });
+  });
+  // Overall skin value is per-skin (varies by round)
+  const byPlayer = {};
+  const earningsByPlayer = {};
+  allSkins.forEach(s => {
+    byPlayer[s.winnerId] = (byPlayer[s.winnerId]||0) + 1;
+    earningsByPlayer[s.winnerId] = (earningsByPlayer[s.winnerId]||0) + s.skinValue;
+  });
+  // For display: total skins won and total pot
+  const totalSkins = allSkins.length;
+  return {allSkins, byPlayer, earningsByPlayer, totalSkins, potPerRound:POT_PER_ROUND};
+}
+
+// Match win bonuses: $20 per player per won match
+function calcMatchBonuses(scores, pairings) {
+  const bonuses = {};
+  ROUNDS.forEach(r => {
+    pairings[r.id].forEach((match, mi) => {
+      const ids = r.singles ? [match.teamA[0], match.teamB[0]] : [...match.teamA, ...match.teamB];
+      if (ids.some(id => !id)) return;
+      const ss = calcStrokes(ids, r.course);
+      const hs = Array.from({length:18}, (_, hi) => ids.map((_, pi) => scores[r.id][mi][hi][pi]));
+      const {final} = scoreMatch(hs, ss, r.course, r.singles);
+      if (!final || final === 'AS' || final === 'HALVED') return;
+      const winningTeam = final.startsWith('USA') ? match.teamA : match.teamB;
+      winningTeam.filter(Boolean).forEach(id => {
+        bonuses[id] = (bonuses[id]||0) + 20;
+      });
+    });
+  });
+  return bonuses;
+}
+
+// Greenie winnings: $25 per win
+function calcGreenieWinnings(greenieData) {
+  const wins = {};
+  Object.values(greenieData).forEach(({winners}) => {
+    winners.forEach(id => {
+      if (id) wins[id] = (wins[id]||0) + 25;
+    });
+  });
+  return wins;
+}
+
+// Per-round money breakdown for a player
+function playerRoundMoney(playerId, roundId, scores, pairings, greenieData) {
+  const r = ROUNDS.find(x => x.id === roundId);
+
+  // Match bonus for this round
+  let matchBonus = 0;
+  pairings[roundId].forEach((match, mi) => {
+    const ids = r.singles ? [match.teamA[0], match.teamB[0]] : [...match.teamA, ...match.teamB];
+    if (!ids.includes(playerId) || ids.some(id => !id)) return;
+    const ss = calcStrokes(ids, r.course);
+    const hs = Array.from({length:18}, (_, hi) => ids.map((_, pi) => scores[r.id][mi][hi][pi]));
+    const {final} = scoreMatch(hs, ss, r.course, r.singles);
+    if (!final || final==='AS' || final==='HALVED') return;
+    const winTeam = final.startsWith('USA') ? match.teamA : match.teamB;
+    if (winTeam.filter(Boolean).includes(playerId)) matchBonus += 20;
+  });
+
+  // Gross skins this round
+  const grossRound = calcSkinsForRound(scores, pairings, roundId, 'gross');
+  const grossWon = grossRound.filter(s => s && s.winnerId === playerId).length;
+  const grossSkinsWonInRound = grossRound.filter(Boolean).length;
+  const grossSkinVal = grossSkinsWonInRound > 0 ? 125 / grossSkinsWonInRound : 0;
+  const grossSkins = grossWon; // count
+  const grossSkinEarnings = grossWon * grossSkinVal;
+
+  // Net skins this round
+  const netRound = calcSkinsForRound(scores, pairings, roundId, 'net');
+  const netWon = netRound.filter(s => s && s.winnerId === playerId).length;
+  const netSkinsWonInRound = netRound.filter(Boolean).length;
+  const netSkinVal = netSkinsWonInRound > 0 ? 125 / netSkinsWonInRound : 0;
+  const netSkins = netWon; // count
+  const netSkinEarnings = netWon * netSkinVal;
+
+  // Greenies this round
+  const gd = greenieData[roundId];
+  const greenies = gd ? gd.winners.filter(id => id === playerId).length : 0;
+
+  return {matchBonus, grossSkins, grossSkinEarnings, netSkins, netSkinEarnings, greenies};
+}
 const EVENT_DATE = new Date("2026-07-16T15:00:00");
 const PINS = {
   usa:     "1776",   // USA Captain
@@ -409,14 +556,14 @@ const PINS = {
   commish: "2285",   // Commish (full access)
 };
 
-// Module-level override store — updated by App whenever playerOverrides changes
-let _playerOverrides = {};
-const byId = id => {
-  const p = PLAYERS.find(p=>p.id===id);
-  if(!p) return p;
-  return _playerOverrides[id] ? {...p,..._playerOverrides[id]} : p;
-};
-const allPlayers = () => PLAYERS.map(p => _playerOverrides[p.id] ? {...p,..._playerOverrides[p.id]} : p);
+// Single source of truth for player data — updated synchronously on edit
+const PLAYER_DATA = PLAYERS.map(p=>({...p})); // mutable working copy
+const byId = id => PLAYER_DATA.find(p=>p.id===id);
+const allPlayers = () => [...PLAYER_DATA];
+function applyPlayerOverride(id, updates) {
+  const idx = PLAYER_DATA.findIndex(p=>p.id===id);
+  if(idx !== -1) Object.assign(PLAYER_DATA[idx], updates);
+}
 const isUSAWin = h => h.w.toLowerCase().includes("usa")||h.w.toLowerCase().includes("sears");
 const winPct = (w,l,t) => { const n=w+l+t; return n?Math.round(((w+t*.5)/n)*100):0; };
 
@@ -503,11 +650,9 @@ function App() {
   const [scores,setScores]=useState(initScores);
   const [authLevel,setAuthLevel]=useState(null); // null | "usa" | "eur" | "commish"
   const [confirmed,setConfirmed]=useState(initConfirmed);
-  const [playerOverrides,setPlayerOverrides]=useState({}); // id -> {name,team,hcp}
-  // Keep module-level override map in sync so byId() works everywhere
-  _playerOverrides = playerOverrides;
+  const [greenieData,setGreenieData]=useState(()=>Object.fromEntries(ROUNDS.map(r=>[r.id,{holes:[null,null],winners:[null,null]}])));
   const {d,h,m,s,over}=useCountdown(EVENT_DATE.getTime());
-  const rPlayers = allPlayers(); // resolved player list for this render
+  const rPlayers = allPlayers(); // always fresh from PLAYER_DATA
   const usaCaptain = rPlayers.find(p=>p.captain&&p.team==="USA")?.name ?? "USA";
   const eurCaptain = rPlayers.find(p=>p.captain&&p.team==="EUR")?.name ?? "EUR";
 
@@ -562,7 +707,7 @@ function App() {
       </div>
 
       <div className="tabs">
-        {[{id:"matches",icon:"⛳",label:"Matches"},{id:"players",icon:"👥",label:"Players"},{id:"schedule",icon:"📅",label:"Schedule"},{id:"history",icon:"📜",label:"History"}].map(t=>(
+        {[{id:"matches",icon:"⛳",label:"Matches"},{id:"scoring",icon:"✏️",label:"Scores"},{id:"money",icon:"💰",label:"Money"},{id:"players",icon:"👥",label:"Players"},{id:"history",icon:"📜",label:"History"}].map(t=>(
           <button key={t.id} className={`tab ${tab===t.id?"tab-on":""}`} onClick={()=>setTab(t.id)}>
             <span className="ti">{t.icon}</span><span className="tl">{t.label}</span>
           </button>
@@ -570,10 +715,11 @@ function App() {
       </div>
 
       <div className="page">
-        {tab==="matches" && <MatchesPage pairings={pairings} setPairings={setPairings} scores={scores} setScores={setScores} authLevel={authLevel} setAuthLevel={setAuthLevel} confirmed={confirmed} setConfirmed={setConfirmed} rPlayers={rPlayers}/>}
-        {tab==="players" && <PlayersPage authLevel={authLevel} playerOverrides={playerOverrides} setPlayerOverrides={setPlayerOverrides} rPlayers={rPlayers}/>}
-        {tab==="schedule" && <SchedulePage/>}
-        {tab==="history" && <HistoryPage/>}
+        {tab==="matches"  && <MatchesPage pairings={pairings} setPairings={setPairings} scores={scores} setScores={setScores} authLevel={authLevel} setAuthLevel={setAuthLevel} confirmed={confirmed} setConfirmed={setConfirmed} rPlayers={rPlayers}/>}
+        {tab==="scoring"  && <ScoringPage pairings={pairings} scores={scores} setScores={setScores} rPlayers={rPlayers}/>}
+        {tab==="money"    && <MoneyPage scores={scores} pairings={pairings} greenieData={greenieData} setGreenieData={setGreenieData} authLevel={authLevel} rPlayers={rPlayers}/>}
+        {tab==="players"  && <PlayersPage authLevel={authLevel} onPlayerUpdate={()=>_forceUpdate(n=>n+1)} rPlayers={rPlayers}/>}
+        {tab==="history"  && <HistoryPage scores={scores} pairings={pairings}/>}
       </div>
     </div>
   );
@@ -1028,20 +1174,21 @@ function PlayerEditor({player,onSave,onClose}) {
   );
 }
 
-function PlayersPage({authLevel,playerOverrides,setPlayerOverrides,rPlayers}) {
+function PlayersPage({authLevel,onPlayerUpdate,rPlayers}) {
   const [filter,setFilter]=useState("ALL");
   const [sel,setSel]=useState(null);
   const [editingPlayer,setEditingPlayer]=useState(null);
 
-  const resolvedPlayers = rPlayers || PLAYERS;
+  const resolvedPlayers = allPlayers(); // always latest from PLAYER_DATA
   const list = filter==="ALL" ? resolvedPlayers : resolvedPlayers.filter(p=>p.team===filter);
-  const rsp = sel ? resolvedPlayers.find(p=>p.id===sel) : null; // resolved selected player
+  const rsp = sel ? resolvedPlayers.find(p=>p.id===sel) : null;
   const sc  = rsp ? CAREER[rsp.id] : null;
 
   function savePlayerEdit(updates) {
-    setPlayerOverrides(prev=>({...prev,[editingPlayer.id]:{...(prev[editingPlayer.id]||{}),...updates}}));
+    applyPlayerOverride(editingPlayer.id, updates); // synchronous — PLAYER_DATA updated immediately
+    onPlayerUpdate(); // tell App to re-render so rPlayers refreshes everywhere
     setEditingPlayer(null);
-    setSel(null); // reset so bio refreshes
+    setSel(null);
   }
 
   return (
@@ -1181,6 +1328,417 @@ function SchedulePage() {
           <div key={f.y} className="future-row"><span className="future-yr">{f.y}</span><span className="future-d">{f.d}</span><span className="future-cost">$975/golfer</span></div>
         ))}
       </div>
+    </div>
+  );
+}
+
+
+function ScoringPage({pairings, scores, setScores, rPlayers}) {
+  const [round, setRound] = useState("R1");
+  const [matchIdx, setMatchIdx] = useState(null);
+  const [holeIdx, setHoleIdx] = useState(0);
+  const r = ROUNDS.find(x => x.id === round);
+  const course = COURSES[r.course];
+
+  function setScore(hole, pi, val) {
+    setScores(prev => {
+      const n = JSON.parse(JSON.stringify(prev));
+      n[round][matchIdx][hole][pi] = val;
+      return n;
+    });
+  }
+
+  // Match selector view
+  if (matchIdx === null) {
+    return (
+      <div>
+        <div className="round-tabs" style={{marginBottom:14}}>
+          {ROUNDS.map(x=>(
+            <button key={x.id} className={`round-tab ${round===x.id?"rtab-on":""}`}
+              onClick={()=>{setRound(x.id);setMatchIdx(null);setHoleIdx(0);}}>
+              <span className="rt-label">{x.id}</span>
+              <span className="rt-day">{x.day.split(" ")[0]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="scoring-header-bar">
+          <div className="shb-title">{r.format}</div>
+          <div className="shb-meta">{r.time} · {r.course}</div>
+        </div>
+        <div className="match-list">
+          {pairings[round].map((match, mi) => {
+            const ids = r.singles ? [match.teamA[0],match.teamB[0]] : [...match.teamA,...match.teamB];
+            const valid = ids.every(Boolean);
+            const scored = valid && scores[round][mi].some(h => h.some(v => v !== null));
+            const done = valid && scores[round][mi].every(h => h.every(v => v !== null));
+            return (
+              <div key={mi} className={`match-card ${!valid?"mc-disabled":""}`}
+                onClick={()=>valid&&(setMatchIdx(mi),setHoleIdx(0))}>
+                <div className="mc-num">Match {mi+1}</div>
+                <div className="mc-body">
+                  <div className="mc-team">
+                    <span className="mc-team-label usa-label">🇺🇸</span>
+                    <div className="mc-players">
+                      {(r.singles?[match.teamA[0]]:[...match.teamA]).filter(Boolean).map(id=>{
+                        const p=byId(id);
+                        return <span key={id} className="mc-player"><span className="mc-dot" style={{background:p.color}}/>{p.name}</span>;
+                      })}
+                      {!valid&&<span className="mc-tbd">TBD</span>}
+                    </div>
+                  </div>
+                  <div className="mc-status" style={{color:done?"#2ecc71":scored?"#f0c040":"#666"}}>
+                    {done?"✓ Done":scored?"In Progress":"Not Started"}
+                  </div>
+                  <div className="mc-team mc-team-r">
+                    <span className="mc-team-label eur-label">🇪🇺</span>
+                    <div className="mc-players mc-players-r">
+                      {(r.singles?[match.teamB[0]]:[...match.teamB]).filter(Boolean).map(id=>{
+                        const p=byId(id);
+                        return <span key={id} className="mc-player"><span className="mc-dot" style={{background:p.color}}/>{p.name}</span>;
+                      })}
+                    </div>
+                  </div>
+                </div>
+                {valid&&<button className="mc-score-btn">Enter Scores →</button>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Hole-by-hole scoring view
+  const match = pairings[round][matchIdx];
+  const ids = r.singles ? [match.teamA[0],match.teamB[0]] : [...match.teamA,...match.teamB];
+  const ss = calcStrokes(ids, r.course);
+  const holeScores = ids.map((_, pi) => scores[round][matchIdx][holeIdx][pi]);
+  const nets = ids.map((id, pi) => {
+    const g = holeScores[pi];
+    return g != null ? g - (ss[pi].has(holeIdx) ? 1 : 0) : null;
+  });
+
+  // Running match status
+  const allHoleScores = Array.from({length:18}, (_, hi) => ids.map((_, pi) => scores[round][matchIdx][hi][pi]));
+  const {holeStatus, holeResults} = scoreMatch(allHoleScores, ss, r.course, r.singles);
+  const currentStatus = holeStatus.filter(Boolean).at(-1) ?? "AS";
+  const statusColor = currentStatus.startsWith("USA")?"#B22234":currentStatus.startsWith("EUR")?"#FFCD00":"var(--cream)";
+
+  const teamUSA = r.singles ? [match.teamA[0]] : match.teamA;
+  const teamEUR = r.singles ? [match.teamB[0]] : match.teamB;
+
+  return (
+    <div>
+      <button className="back-btn" onClick={()=>setMatchIdx(null)}>← Back to Groups</button>
+
+      {/* Match status bar */}
+      <div className="hole-score-header">
+        <div className="hsh-teams">
+          <div className="hsh-team">
+            <span className="hsh-flag">🇺🇸</span>
+            {teamUSA.filter(Boolean).map(id=>{const p=byId(id);return <span key={id} className="hsh-name" style={{color:p.color}}>{p.name}</span>;})}
+          </div>
+          <div className="hsh-status" style={{color:statusColor}}>{currentStatus}</div>
+          <div className="hsh-team hsh-team-r">
+            {teamEUR.filter(Boolean).map(id=>{const p=byId(id);return <span key={id} className="hsh-name" style={{color:p.color}}>{p.name}</span>;})}
+            <span className="hsh-flag">🇪🇺</span>
+          </div>
+        </div>
+        {/* Hole mini-map */}
+        <div className="hole-mini-map">
+          {Array.from({length:18},(_,i)=>{
+            const res = holeResults[i];
+            const active = i === holeIdx;
+            return (
+              <button key={i}
+                className={`hmm-hole ${active?"hmm-active":""} ${res==="A"?"hmm-usa":res==="B"?"hmm-eur":res==="H"?"hmm-half":""}`}
+                onClick={()=>setHoleIdx(i)}>
+                {i+1}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Hole card */}
+      <div className="hole-entry-card">
+        <div className="hec-top">
+          <div className="hec-num">Hole {holeIdx+1}</div>
+          <div className="hec-info">Par {course.par[holeIdx]} · {course.yards[holeIdx]}y · HCP {course.hcp[holeIdx]}</div>
+          <div className={`hec-res ${holeResults[holeIdx]==="A"?"res-a":holeResults[holeIdx]==="B"?"res-b":holeResults[holeIdx]==="H"?"res-h":""}`}>
+            {holeResults[holeIdx]==="A"?"USA":holeResults[holeIdx]==="B"?"EUR":holeResults[holeIdx]==="H"?"HALF":"–"}
+          </div>
+        </div>
+
+        <div className="hec-divider usa-divider"/>
+        {ids.map((id, pi) => {
+          const p = byId(id);
+          const g = holeScores[pi];
+          const net = nets[pi];
+          const isUSA = pi < (r.singles?1:2);
+          if (pi === (r.singles?1:2)) return <div key="div" className="hec-divider eur-divider"/>;
+          return (
+            <div key={id} className="hec-player-row">
+              <div className="hpr-info">
+                <span className="hpr-dot" style={{background:p.color}}/>
+                <span className="hpr-name">{p.name}</span>
+                <span className="hpr-hcp">HCP {p.hcp}</span>
+                {ss[pi].has(holeIdx) && <span className="hpr-stroke">+1</span>}
+                {net !== null && <span className="hpr-net">net {net}</span>}
+              </div>
+              <div className="hpr-controls">
+                <button className="hpr-btn" onClick={()=>setScore(holeIdx,pi,Math.max(1,(g??course.par[holeIdx])-1))}>−</button>
+                <span className={`hpr-score ${g!=null?"hpr-scored":""}`}>{g??'–'}</span>
+                <button className="hpr-btn" onClick={()=>setScore(holeIdx,pi,(g??course.par[holeIdx])+1)}>+</button>
+                {g!=null&&<button className="hpr-clear" onClick={()=>setScore(holeIdx,pi,null)}>×</button>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Prev / Next */}
+      <div className="hole-nav">
+        <button className="hn-btn" onClick={()=>setHoleIdx(h=>Math.max(0,h-1))} disabled={holeIdx===0}>← Prev</button>
+        <span className="hn-progress">{holeIdx+1} / 18</span>
+        <button className="hn-btn" onClick={()=>setHoleIdx(h=>Math.min(17,h+1))} disabled={holeIdx===17}>Next →</button>
+      </div>
+    </div>
+  );
+}
+
+
+function MoneyPage({scores, pairings, greenieData, setGreenieData, authLevel, rPlayers}) {
+  const [view, setView] = useState("leaderboard"); // leaderboard | skins | greenies | bonuses
+
+  const gross = calcAllSkins(scores, pairings, "gross");
+  const net   = calcAllSkins(scores, pairings, "net");
+  const bonuses = calcMatchBonuses(scores, pairings);
+  const greenieWins = calcGreenieWinnings(greenieData);
+
+  // Build per-player total
+  const players = rPlayers || allPlayers();
+  const moneyRows = players.map(p => {
+    let total = 0, rounds = {};
+    ROUNDS.forEach(r => {
+      const {matchBonus, grossSkins, grossSkinEarnings, netSkins, netSkinEarnings, greenies} = playerRoundMoney(p.id, r.id, scores, pairings, greenieData);
+      const greenieVal = greenies * 25;
+      const roundTotal = matchBonus + grossSkinEarnings + netSkinEarnings + greenieVal;
+      rounds[r.id] = {matchBonus, grossSkins, grossVal:grossSkinEarnings, netSkins, netVal:netSkinEarnings, greenies, greenieVal, roundTotal};
+      total += roundTotal;
+    });
+    return {...p, rounds, total};
+  }).sort((a,b) => b.total - a.total);
+
+  // Greenie hole selector for commish
+  function setGreenieHole(roundId, slotIdx, holeIdx) {
+    setGreenieData(prev => ({...prev, [roundId]: {...prev[roundId], holes: prev[roundId].holes.map((h,i)=>i===slotIdx?holeIdx:h)}}));
+  }
+  function setGreenieWinner(roundId, slotIdx, playerId) {
+    setGreenieData(prev => ({...prev, [roundId]: {...prev[roundId], winners: prev[roundId].winners.map((w,i)=>i===slotIdx?playerId:w)}}));
+  }
+
+  const par3Holes = (courseKey) => COURSES[courseKey].par.map((p,i)=>({i,p})).filter(x=>x.p===3);
+
+  return (
+    <div>
+      <div className="money-header">
+        <div className="money-title">💰 Money</div>
+        <div className="money-pots">
+          <span className="pot-badge">Gross Skins $500</span>
+          <span className="pot-badge">Net Skins $500</span>
+          <span className="pot-badge">Greenies $25</span>
+          <span className="pot-badge">Match Bonus $20</span>
+        </div>
+      </div>
+
+      <div className="filter-bar">
+        {[["leaderboard","🏦 Leaders"],["skins","🎯 Skins"],["greenies","🟢 Greenies"],["bonuses","🎖️ Bonuses"]].map(([id,lbl])=>(
+          <button key={id} className={`filter-btn ${view===id?"filter-on":""}`} onClick={()=>setView(id)}>{lbl}</button>
+        ))}
+      </div>
+
+      {view==="leaderboard" && (
+        <div>
+          <div className="money-table">
+            <div className="mt-head">
+              <span>Player</span><span>R1</span><span>R2</span><span>R3</span><span>R4</span><span>Total</span>
+            </div>
+            {moneyRows.map((p,i) => (
+              <div key={p.id} className={`mt-row ${i===0&&p.total>0?"mt-leader":""}`}>
+                <span className="mt-player">
+                  <span className="mt-dot" style={{background:p.color}}/>
+                  <span className="mt-name">{p.name}</span>
+                </span>
+                {ROUNDS.map(r => (
+                  <span key={r.id} className="mt-cell">
+                    {p.rounds[r.id].roundTotal > 0 ? `$${p.rounds[r.id].roundTotal.toFixed(0)}` : "—"}
+                  </span>
+                ))}
+                <span className="mt-total" style={{color:p.team==="USA"?"#B22234":"#FFCD00"}}>
+                  {p.total > 0 ? `$${p.total.toFixed(0)}` : "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+          {/* Skin values */}
+          <div className="card" style={{marginTop:12}}>
+            <div className="card-title">Skin Values</div>
+            <div className="skin-val-row">
+              <span>🟡 Gross Skins</span>
+              <span>$125/round · {gross.allSkins.length} skins won</span>
+              <span className="sv-val">{gross.totalSkins>0?`$${(gross.allSkins.reduce((a,s)=>a+s.skinValue,0)/gross.totalSkins).toFixed(2)} avg/skin`:"TBD"}</span>
+            </div>
+            <div className="skin-val-row">
+              <span>🔵 Net Skins</span>
+              <span>$125/round · {net.allSkins.length} skins won</span>
+              <span className="sv-val">{net.totalSkins>0?`$${(net.allSkins.reduce((a,s)=>a+s.skinValue,0)/net.totalSkins).toFixed(2)} avg/skin`:"TBD"}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {view==="skins" && (
+        <div>
+          {["gross","net"].map(type => {
+            const skinData = type==="gross"?gross:net;
+            return (
+              <div key={type} className="card" style={{marginBottom:12}}>
+                <div className="card-title">{type==="gross"?"🟡 Gross Skins ($125/round · $500 total)":"🔵 Net Skins ($125/round · $500 total)"}</div>
+                {skinData.allSkins.length===0 && <div className="no-data">No skins yet — scores needed</div>}
+                {skinData.allSkins.map((s,i) => {
+                  const p = byId(s.winnerId);
+                  const r = ROUNDS.find(x=>x.id===s.roundId);
+                  return (
+                    <div key={i} className="skin-row">
+                      <span className="skin-round">{s.roundId}</span>
+                      <span className="skin-hole">H{s.holeIdx+1}</span>
+                      <span className="skin-player">
+                        <span className="skin-dot" style={{background:p.color}}/>{p.name}
+                      </span>
+                      <span className="skin-score">{s.score}</span>
+                      <span className="skin-val-badge">${s.skinValue.toFixed(2)}</span>
+                    </div>
+                  );
+                })}
+                {skinData.allSkins.length>0 && (
+                  <div className="skin-summary">
+                    {Object.entries(skinData.byPlayer).sort((a,b)=>b[1]-a[1]).map(([id,cnt])=>{
+                      const p=byId(id);
+                      return <span key={id} className="ss-item"><span className="ss-dot" style={{background:p.color}}/>{p.name} {cnt}×</span>;
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {view==="greenies" && (
+        <div>
+          {ROUNDS.map(r => {
+            const gd = greenieData[r.id];
+            const courseKey = r.course;
+            const par3s = par3Holes(courseKey);
+            return (
+              <div key={r.id} className="card" style={{marginBottom:12}}>
+                <div className="card-title">📅 {r.label} · {r.course}</div>
+                {[0,1].map(slot => {
+                  const holeIdx = gd.holes[slot];
+                  const winnerId = gd.winners[slot];
+                  const winner = winnerId ? byId(winnerId) : null;
+                  return (
+                    <div key={slot} className="greenie-slot">
+                      <div className="gs-label">Greenie {slot+1}</div>
+                      {authLevel==="commish" ? (
+                        <div className="gs-edit">
+                          <select className="gs-select"
+                            value={holeIdx??""} 
+                            onChange={e=>setGreenieHole(r.id,slot,e.target.value===""?null:parseInt(e.target.value))}>
+                            <option value="">Select hole</option>
+                            {par3s.map(h=><option key={h.i} value={h.i}>Hole {h.i+1} (Par 3 · {COURSES[courseKey].yards[h.i]}y)</option>)}
+                          </select>
+                          {holeIdx !== null && (
+                            <select className="gs-select"
+                              value={winnerId??""} 
+                              onChange={e=>setGreenieWinner(r.id,slot,e.target.value||null)}>
+                              <option value="">Select winner</option>
+                              {allPlayers().map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="gs-display">
+                          <span className="gs-hole">{holeIdx!==null?`Hole ${holeIdx+1}`:"TBD"}</span>
+                          {winner ? (
+                            <span className="gs-winner">
+                              <span className="gs-dot" style={{background:winner.color}}/>{winner.name}
+                              <span className="gs-prize">$25</span>
+                            </span>
+                          ) : <span className="gs-tbd">Winner TBD</span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {view==="bonuses" && (
+        <div>
+          <div className="card" style={{marginBottom:8}}>
+            <div className="card-title">🎖️ Match Win Bonuses ($20/win)</div>
+            {Object.keys(bonuses).length===0 && <div className="no-data">No completed matches yet</div>}
+            {Object.entries(bonuses).sort((a,b)=>b[1]-a[1]).map(([id,amt])=>{
+              const p=byId(id);
+              return (
+                <div key={id} className="bonus-row">
+                  <span className="br-dot" style={{background:p.color}}/>
+                  <span className="br-name">{p.name}</span>
+                  <span className="br-wins">{amt/20}× wins</span>
+                  <span className="br-amt" style={{color:p.team==="USA"?"#B22234":"#FFCD00"}}>${amt}</span>
+                </div>
+              );
+            })}
+          </div>
+          {/* Per-round bonus breakdown */}
+          {ROUNDS.map(r => {
+            const r2 = ROUNDS.find(x=>x.id===r.id);
+            return (
+              <div key={r.id} className="card" style={{marginBottom:8}}>
+                <div className="card-title">{r.label} · {r.format}</div>
+                {pairings[r.id].map((match,mi)=>{
+                  const ids = r.singles?[match.teamA[0],match.teamB[0]]:[...match.teamA,...match.teamB];
+                  if(ids.some(id=>!id)) return null;
+                  const ss=calcStrokes(ids,r.course);
+                  const hs=Array.from({length:18},(_,hi)=>ids.map((_,pi)=>scores[r.id][mi][hi][pi]));
+                  const {final}=scoreMatch(hs,ss,r.course,r.singles);
+                  const winTeam = final.startsWith("USA")?match.teamA:final.startsWith("EUR")?match.teamB:null;
+                  if(!winTeam) return (
+                    <div key={mi} className="bonus-match-row">
+                      <span className="bmr-num">M{mi+1}</span>
+                      <span className="bmr-result" style={{color:"#666"}}>{final}</span>
+                    </div>
+                  );
+                  return (
+                    <div key={mi} className="bonus-match-row">
+                      <span className="bmr-num">M{mi+1}</span>
+                      <span className="bmr-result" style={{color:final.startsWith("USA")?"#B22234":"#FFCD00"}}>{final}</span>
+                      <span className="bmr-winners">
+                        {winTeam.filter(Boolean).map(id=>{const p=byId(id);return <span key={id}><span className="bmr-dot" style={{background:p.color}}/>{p.name} +$20</span>;})}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
