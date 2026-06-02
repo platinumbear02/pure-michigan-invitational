@@ -299,10 +299,10 @@ const COURSES = {
 };
 
 const ROUNDS = [
-  {id:"R1",label:"Round 1",day:"Thu Jul 16",time:"3:00 PM",course:"Retreat",format:"2-Man Scramble",singles:false},
-  {id:"R2",label:"Round 2",day:"Fri Jul 17",time:"10:00 AM",course:"Retreat",format:"Four-Ball",singles:false},
-  {id:"R3",label:"Round 3",day:"Sat Jul 18",time:"10:50 AM",course:"Revenge",format:"Greensomes",singles:false},
-  {id:"R4",label:"Singles",day:"Sun Jul 19",time:"9:30 AM",course:"Revenge",format:"Singles",singles:true},
+  {id:"R1",label:"Round 1",day:"Thu Jul 16",time:"3:00 PM",course:"Retreat",format:"2-Man Scramble",singles:false,teamScore:true},
+  {id:"R2",label:"Round 2",day:"Fri Jul 17",time:"10:00 AM",course:"Retreat",format:"Four-Ball",singles:false,teamScore:false},
+  {id:"R3",label:"Round 3",day:"Sat Jul 18",time:"10:50 AM",course:"Revenge",format:"Greensomes",singles:false,teamScore:true},
+  {id:"R4",label:"Singles",day:"Sun Jul 19",time:"9:30 AM",course:"Revenge",format:"Singles",singles:true,teamScore:false},
 ];
 
 const USA_RED  = "#B22234";
@@ -486,9 +486,9 @@ function calcMatchBonuses(scores, pairings) {
     pairings[r.id].forEach((match, mi) => {
       const ids = r.singles ? [match.teamA[0], match.teamB[0]] : [...match.teamA, ...match.teamB];
       if (ids.some(id => !id)) return;
-      const ss = calcStrokes(ids, r.course);
+      const ss = r.teamScore?calcTeamStrokes(match.teamA,match.teamB,r.course,r.format):calcStrokes(ids,r.course);
       const hs = Array.from({length:18}, (_, hi) => ids.map((_, pi) => scores[r.id][mi][hi][pi]));
-      const {final} = scoreMatch(hs, ss, r.course, r.singles);
+      const {final} = scoreMatch(hs, ss, r.course, r.singles, r.teamScore||false);
       if (!final || final === 'AS' || final === 'HALVED') return;
       const winningTeam = final.startsWith('USA') ? match.teamA : match.teamB;
       winningTeam.filter(Boolean).forEach(id => {
@@ -660,9 +660,9 @@ function calcTournamentRecords(scores, pairings) {
       const bIds = r.singles?[match.teamB[0]]:match.teamB.filter(Boolean);
       const ids  = r.singles?[match.teamA[0],match.teamB[0]]:[...match.teamA,...match.teamB];
       if(ids.some(id=>!id)) return;
-      const ss2 = calcStrokes(ids,r.course);
+      const ss2 = r.teamScore?calcTeamStrokes(match.teamA,match.teamB,r.course,r.format):calcStrokes(ids,r.course);
       const hs  = Array.from({length:18},(_,hi)=>ids.map((_,pi)=>scores[r.id][mi][hi][pi]));
-      const {final} = scoreMatch(hs,ss2,r.course,r.singles);
+      const {final} = scoreMatch(hs,ss2,r.course,r.singles,r.teamScore);
       if(!final||final==='AS') return;
       if(final.startsWith('USA')) {
         aIds.forEach(id=>{if(rec[id]){rec[id].w++;rec[id].pts+=1;}});
@@ -696,6 +696,44 @@ function calcGrossPerRound(scores, pairings) {
   });
   return result;
 }
+
+// Team handicap: Scramble = 35% lower + 65% higher · Greensomes = 60% lower + 40% higher
+function teamHandicap(ids, format) {
+  const hcps = ids.filter(Boolean).map(id=>byId(id)?.hcp??0).sort((a,b)=>a-b);
+  if(!hcps.length) return 0;
+  if(hcps.length===1) return hcps[0];
+  const [lo,hi]=hcps;
+  if(format==="2-Man Scramble") return Math.round(lo*0.35+hi*0.65);
+  if(format==="Greensomes")     return Math.round(lo*0.6+hi*0.4);
+  return lo;
+}
+
+// Stroke sets for team vs team match: returns [setA, emptySet, setB, emptySet]
+function calcTeamStrokes(teamA, teamB, courseKey, format) {
+  const hcpA=teamHandicap(teamA,format), hcpB=teamHandicap(teamB,format);
+  const min=Math.min(hcpA,hcpB);
+  const course=COURSES[courseKey];
+  function sSet(hcp){
+    const diff=hcp-min;
+    const sorted=course.hcp.map((h,i)=>({i,h})).sort((a,b)=>a.h-b.h);
+    return new Set(sorted.slice(0,diff).map(x=>x.i));
+  }
+  return [sSet(hcpA),new Set(),sSet(hcpB),new Set()];
+}
+
+// Get team score total for a player in a team-score round
+function getTeamScore(playerId, roundId, pairings, scores) {
+  const r=ROUNDS.find(x=>x.id===roundId);
+  if(!r||!r.teamScore) return null;
+  for(let mi=0;mi<pairings[roundId].length;mi++){
+    const match=pairings[roundId][mi];
+    const pi=match.teamA.includes(playerId)?0:match.teamB.includes(playerId)?2:null;
+    if(pi===null) continue;
+    const hs=Array.from({length:18},(_,hi)=>scores[roundId][mi][hi][pi]);
+    if(hs.every(s=>s!==null)) return hs.reduce((a,b)=>a+b,0);
+  }
+  return null;
+}
 const EVENT_DATE = new Date("2026-07-16T15:00:00");
 const PINS = {
   usa:     "1776",   // USA Captain
@@ -725,7 +763,7 @@ function calcStrokes(ids, courseKey) {
   });
 }
 
-function scoreMatch(holeScores, strokeSets, courseKey, isSingles) {
+function scoreMatch(holeScores, strokeSets, courseKey, isSingles, isTeamScore=false) {
   const results=[]; const statuses=[];
   let aUp=0;
   let matchOver=false;   // true once result is mathematically decided
@@ -742,8 +780,8 @@ function scoreMatch(holeScores, strokeSets, courseKey, isSingles) {
     }
 
     const net=s.map((g,pi)=>g-(strokeSets[pi].has(i)?1:0));
-    const aS=isSingles?net[0]:Math.min(net[0],net[1]);
-    const bS=isSingles?net[1]:Math.min(net[2],net[3]);
+    const aS=isSingles?net[0]:isTeamScore?net[0]:Math.min(net[0],net[1]);
+    const bS=isSingles?net[1]:isTeamScore?net[2]:Math.min(net[2],net[3]);
     const holeRes = aS<bS?"A":bS<aS?"B":"H";
     results.push(holeRes);
 
@@ -1059,9 +1097,9 @@ function MatchesPage({pairings,setPairings,scores,setScores,authLevel,setAuthLev
             const valid=ids.every(Boolean);
             let status="Not started";
             if(valid){
-              const ss=calcStrokes(ids,r.course);
+              const ss=r.teamScore?calcTeamStrokes(match.teamA,match.teamB,r.course,r.format):calcStrokes(ids,r.course);
               const hs=Array.from({length:18},(_,hi)=>ids.map((_,pi)=>scores[round][mi][hi][pi]));
-              status=scoreMatch(hs,ss,r.course,r.singles).final;
+              status=scoreMatch(hs,ss,r.course,r.singles,r.teamScore||false).final;
             }
             const sColor=status.startsWith("USA")?"#B22234":status.startsWith("EUR")?"#FFCD00":status==="AS"?"#aaa":"#666";
             const aIds=match.teamA.filter(Boolean), bIds=match.teamB.filter(Boolean);
