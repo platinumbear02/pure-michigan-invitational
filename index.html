@@ -549,6 +549,104 @@ function playerRoundMoney(playerId, roundId, scores, pairings, greenieData) {
 
   return {matchBonus, grossSkins, grossSkinEarnings, netSkins, netSkinEarnings, greenies};
 }
+
+// ─── Test Data Generator ──────────────────────────────────────────────────────
+function generateTestData() {
+  // Pairings: pair USA vs EUR by position (low hcp together)
+  // USA order by hcp: John(9), Ron(10), Shrake(10), OP(10), Vassas(11), JP(16), Dan(20), Rich(23), Mike(30), Kevin(32)
+  // EUR order by hcp: B-Mac(12), Pat(14), Ed(14), Skylar(15), BK(16), Pete(18), Phil(18), Eddie(27), Louie(30), Jimmy(18)
+  const usaIds  = ["john","ron","shrake","op","vassas","jp","dan","rich","mike","kevin"];
+  const eurIds  = ["bmac","pat","ed","skylar","bk","pete","phil","eddie","louie","jimmy"];
+
+  // R1 scramble: pairs 0+1 vs 0+1, etc
+  const r1 = [
+    {teamA:["john","ron"],      teamB:["bmac","pat"]},
+    {teamA:["shrake","op"],     teamB:["ed","skylar"]},
+    {teamA:["vassas","jp"],     teamB:["bk","pete"]},
+    {teamA:["dan","rich"],      teamB:["phil","eddie"]},
+    {teamA:["mike","kevin"],    teamB:["louie","jimmy"]},
+  ];
+  // R2 fourball: mix pairings
+  const r2 = [
+    {teamA:["john","shrake"],   teamB:["ed","bmac"]},
+    {teamA:["ron","op"],        teamB:["pat","skylar"]},
+    {teamA:["vassas","dan"],    teamB:["bk","phil"]},
+    {teamA:["jp","rich"],       teamB:["pete","jimmy"]},
+    {teamA:["mike","kevin"],    teamB:["louie","eddie"]},
+  ];
+  // R3 greensomes: different mix
+  const r3 = [
+    {teamA:["john","op"],       teamB:["bmac","skylar"]},
+    {teamA:["ron","vassas"],    teamB:["ed","pete"]},
+    {teamA:["shrake","jp"],     teamB:["pat","bk"]},
+    {teamA:["dan","mike"],      teamB:["phil","louie"]},
+    {teamA:["rich","kevin"],    teamB:["eddie","jimmy"]},
+  ];
+  // R4 singles: 1v1 in order
+  const r4 = usaIds.map((uid,i) => ({teamA:[uid], teamB:[eurIds[i]]}));
+
+  const pairings = {
+    R1: r1.map((m,i)=>({id:i,...m})),
+    R2: r2.map((m,i)=>({id:i,...m})),
+    R3: r3.map((m,i)=>({id:i,...m})),
+    R4: r4.map((m,i)=>({id:i,...m})),
+  };
+
+  // Score generator: base score from handicap + per-hole variance
+  // Each player shoots roughly their handicap over par per round
+  function genRound(playerId, courseKey) {
+    const p = byId(playerId);
+    const hcp = p ? p.hcp : 18;
+    const course = COURSES[courseKey];
+    const totalPar = course.par.reduce((a,b)=>a+b,0);
+    // Target total ≈ par + hcp*0.7 (they don't shoot their full handicap gross)
+    const targetTotal = totalPar + Math.round(hcp * 0.7);
+    // Distribute across holes weighted by par
+    const scores = course.par.map(par => {
+      const base = par + Math.round((hcp * 0.7) / 18);
+      const variance = Math.floor(Math.random() * 3) - 1; // -1, 0, +1
+      return Math.max(par - 1, base + variance); // min birdie
+    });
+    // Adjust total to match target
+    const diff = targetTotal - scores.reduce((a,b)=>a+b,0);
+    // Spread the diff across random holes
+    let remaining = Math.abs(diff);
+    const sign = diff > 0 ? 1 : -1;
+    while (remaining > 0) {
+      const hi = Math.floor(Math.random() * 18);
+      const newScore = scores[hi] + sign;
+      if (newScore >= 1) { scores[hi] = newScore; remaining--; }
+    }
+    return scores;
+  }
+
+  // Generate scores for all players, all rounds
+  // scores[roundId][matchIdx][holeIdx][playerIdx]
+  const roundCourses = {R1:"Retreat", R2:"Retreat", R3:"Revenge", R4:"Revenge"};
+  const scores = {};
+  ROUNDS.forEach(r => {
+    const course = roundCourses[r.id];
+    scores[r.id] = pairings[r.id].map(match => {
+      const ids = r.singles ? [match.teamA[0], match.teamB[0]] : [...match.teamA, ...match.teamB];
+      const playerRounds = ids.map(id => genRound(id, course));
+      // Restructure to [holeIdx][playerIdx]
+      return Array.from({length:18}, (_,hi) => ids.map((_,pi) => playerRounds[pi][hi]));
+    });
+  });
+
+  // Confirmed: both teams confirmed for all rounds
+  const confirmed = Object.fromEntries(ROUNDS.map(r=>[r.id,{usa:true,eur:true}]));
+
+  // Greenies: pick 2 par3s per round
+  const greenies = {
+    R1: {holes:[2,5],  winners:["john","bmac"]},   // Retreat par3s: holes 3,6 (idx 2,5)
+    R2: {holes:[2,5],  winners:["ed","ron"]},
+    R3: {holes:[1,7],  winners:["shrake","pat"]},   // Revenge par3s: holes 2,8 (idx 1,7)
+    R4: {holes:[1,7],  winners:["vassas","louie"]},
+  };
+
+  return {pairings, scores, confirmed, greenies};
+}
 const EVENT_DATE = new Date("2026-07-16T15:00:00");
 const PINS = {
   usa:     "1776",   // USA Captain
@@ -646,11 +744,28 @@ function useCountdown(target) {
 
 function App() {
   const [tab,setTab]=useState("matches");
-  const [pairings,setPairings]=useState(()=>Object.fromEntries(ROUNDS.map(r=>[r.id,defaultPairings(r)])));
-  const [scores,setScores]=useState(initScores);
-  const [authLevel,setAuthLevel]=useState(null); // null | "usa" | "eur" | "commish"
-  const [confirmed,setConfirmed]=useState(initConfirmed);
-  const [greenieData,setGreenieData]=useState(()=>Object.fromEntries(ROUNDS.map(r=>[r.id,{holes:[null,null],winners:[null,null]}])));
+  const [pairings,setPairings]=useState(()=>{
+    try{const sv=localStorage.getItem("pmi_pairings");return sv?JSON.parse(sv):Object.fromEntries(ROUNDS.map(r=>[r.id,defaultPairings(r)]));}
+    catch(e){return Object.fromEntries(ROUNDS.map(r=>[r.id,defaultPairings(r)]));} 
+  });
+  const [scores,setScores]=useState(()=>{
+    try{const sv=localStorage.getItem("pmi_scores");return sv?JSON.parse(sv):initScores();}
+    catch(e){return initScores();}
+  });
+  const [authLevel,setAuthLevel]=useState(null);
+  const [confirmed,setConfirmed]=useState(()=>{
+    try{const sv=localStorage.getItem("pmi_confirmed");return sv?JSON.parse(sv):initConfirmed();}
+    catch(e){return initConfirmed();}
+  });
+  const [_tick,_forceUpdate]=useState(0);
+  const [greenieData,setGreenieData]=useState(()=>{
+    try{const sv=localStorage.getItem("pmi_greenies");return sv?JSON.parse(sv):Object.fromEntries(ROUNDS.map(r=>[r.id,{holes:[null,null],winners:[null,null]}]));}
+    catch(e){return Object.fromEntries(ROUNDS.map(r=>[r.id,{holes:[null,null],winners:[null,null]}]));}
+  });
+  useEffect(()=>{try{localStorage.setItem("pmi_pairings",JSON.stringify(pairings));}catch(e){}},[pairings]);
+  useEffect(()=>{try{localStorage.setItem("pmi_scores",JSON.stringify(scores));}catch(e){}},[scores]);
+  useEffect(()=>{try{localStorage.setItem("pmi_confirmed",JSON.stringify(confirmed));}catch(e){}},[confirmed]);
+  useEffect(()=>{try{localStorage.setItem("pmi_greenies",JSON.stringify(greenieData));}catch(e){}},[greenieData]);
   const {d,h,m,s,over}=useCountdown(EVENT_DATE.getTime());
   const rPlayers = allPlayers(); // always fresh from PLAYER_DATA
   const usaCaptain = rPlayers.find(p=>p.captain&&p.team==="USA")?.name ?? "USA";
@@ -781,13 +896,37 @@ function MatchesPage({pairings,setPairings,scores,setScores,authLevel,setAuthLev
       <div className="round-info-bar">
         <span className="rib-format">{r.format}</span>
         <span className="rib-meta">{r.time} · {r.course}</span>
-        {authLevel ? (
-          <button className="captain-btn captain-on" onClick={()=>setAuthLevel(null)}>
-            🔓 {authLevel==="commish"?"Commish":authLevel.toUpperCase()+" Capt"}
-          </button>
-        ) : (
-          <button className="captain-btn" onClick={()=>setPinModal(true)}>🔐 Login</button>
-        )}
+        <div style={{display:"flex",gap:6}}>
+          {authLevel ? (
+            <button className="captain-btn captain-on" onClick={()=>setAuthLevel(null)}>
+              🔓 {authLevel==="commish"?"Commish":authLevel.toUpperCase()+" Capt"}
+            </button>
+          ) : (
+            <button className="captain-btn" onClick={()=>setPinModal(true)}>🔐 Login</button>
+          )}
+          {authLevel==="commish" && (
+            <button className="captain-btn" style={{color:"#f0c040",borderColor:"rgba(240,192,64,.3)"}}
+              onClick={()=>{
+                if(window.confirm("Load test data? This will overwrite all current pairings and scores.")){
+                  const td = generateTestData();
+                  localStorage.setItem("pmi_pairings",  JSON.stringify(td.pairings));
+                  localStorage.setItem("pmi_scores",    JSON.stringify(td.scores));
+                  localStorage.setItem("pmi_confirmed", JSON.stringify(td.confirmed));
+                  localStorage.setItem("pmi_greenies",  JSON.stringify(td.greenies));
+                  window.location.reload();
+                }
+              }}>🧪 Test Data</button>
+          )}
+          {authLevel==="commish" && (
+            <button className="captain-btn" style={{color:"#e55",borderColor:"rgba(231,76,60,.3)"}}
+              onClick={()=>{
+                if(window.confirm("Reset ALL pairings, scores and confirmations? This cannot be undone.")){
+                  ["pmi_pairings","pmi_scores","pmi_confirmed","pmi_greenies"].forEach(k=>localStorage.removeItem(k));
+                  window.location.reload();
+                }
+              }}>🗑️ Reset</button>
+          )}
+        </div>
       </div>
 
       {/* Confirm buttons */}
