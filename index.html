@@ -403,7 +403,11 @@ const MVG_HISTORY=[
 ];
 
 const EVENT_DATE = new Date("2026-07-16T15:00:00");
-const PIN = "2026";
+const PINS = {
+  usa:     "1776",   // USA Captain
+  eur:     "1985",   // EUR Captain
+  commish: "2285",   // Commish (full access)
+};
 
 const byId = id => PLAYERS.find(p=>p.id===id);
 const isUSAWin = h => h.w.toLowerCase().includes("usa")||h.w.toLowerCase().includes("sears");
@@ -451,6 +455,25 @@ function defaultPairings(r) {
   }));
 }
 
+// confirmed[roundId] = {usa: bool, eur: bool}
+function initConfirmed() {
+  return Object.fromEntries(ROUNDS.map(r=>[r.id,{usa:false,eur:false}]));
+}
+
+// Are all matches for a round fully paired?
+function roundFullyPaired(pairings, roundId) {
+  const r = ROUNDS.find(x=>x.id===roundId);
+  return pairings[roundId].every(m=>{
+    const ids = r.singles?[m.teamA[0],m.teamB[0]]:[...m.teamA,...m.teamB];
+    return ids.every(Boolean);
+  });
+}
+
+// Are both teams confirmed for a round?
+function roundVisible(confirmed, roundId) {
+  return confirmed[roundId].usa && confirmed[roundId].eur;
+}
+
 function initScores() {
   const s={};
   ROUNDS.forEach(r=>{
@@ -471,7 +494,9 @@ function App() {
   const [tab,setTab]=useState("matches");
   const [pairings,setPairings]=useState(()=>Object.fromEntries(ROUNDS.map(r=>[r.id,defaultPairings(r)])));
   const [scores,setScores]=useState(initScores);
-  const [captainMode,setCaptainMode]=useState(false);
+  const [authLevel,setAuthLevel]=useState(null); // null | "usa" | "eur" | "commish"
+  const [confirmed,setConfirmed]=useState(initConfirmed);
+  const [playerOverrides,setPlayerOverrides]=useState({}); // id -> {name,team,hcp}
   const {d,h,m,s,over}=useCountdown(EVENT_DATE.getTime());
 
   function calcPts(team) {
@@ -533,8 +558,8 @@ function App() {
       </div>
 
       <div className="page">
-        {tab==="matches" && <MatchesPage pairings={pairings} setPairings={setPairings} scores={scores} setScores={setScores} captainMode={captainMode} setCaptainMode={setCaptainMode}/>}
-        {tab==="players" && <PlayersPage/>}
+        {tab==="matches" && <MatchesPage pairings={pairings} setPairings={setPairings} scores={scores} setScores={setScores} authLevel={authLevel} setAuthLevel={setAuthLevel} confirmed={confirmed} setConfirmed={setConfirmed}/>}
+        {tab==="players" && <PlayersPage authLevel={authLevel} playerOverrides={playerOverrides} setPlayerOverrides={setPlayerOverrides}/>}
         {tab==="schedule" && <SchedulePage/>}
         {tab==="history" && <HistoryPage/>}
       </div>
@@ -542,7 +567,7 @@ function App() {
   );
 }
 
-function MatchesPage({pairings,setPairings,scores,setScores,captainMode,setCaptainMode}) {
+function MatchesPage({pairings,setPairings,scores,setScores,authLevel,setAuthLevel,confirmed,setConfirmed}) {
   const [round,setRound]=useState("R1");
   const [activeMatch,setActiveMatch]=useState(null);
   const [editMatch,setEditMatch]=useState(null);
@@ -550,26 +575,42 @@ function MatchesPage({pairings,setPairings,scores,setScores,captainMode,setCapta
   const [pinInput,setPinInput]=useState("");
   const [pinErr,setPinErr]=useState(false);
 
-  function tryPin(){if(pinInput===PIN){setCaptainMode(true);setPinModal(false);setPinInput("");setPinErr(false);}else setPinErr(true);}
+  function tryPin() {
+    const level = Object.entries(PINS).find(([,v])=>v===pinInput)?.[0] ?? null;
+    if(level) { setAuthLevel(level); setPinModal(false); setPinInput(""); setPinErr(false); }
+    else setPinErr(true);
+  }
+
+  function toggleConfirm(team) {
+    setConfirmed(prev=>({...prev,[round]:{...prev[round],[team]:!prev[round][team]}}));
+  }
 
   if(activeMatch) return <MatchDetail roundId={activeMatch.r} matchIdx={activeMatch.m} pairings={pairings} scores={scores} setScores={setScores} onBack={()=>setActiveMatch(null)}/>;
-  if(editMatch) return <PairingEditor roundId={editMatch.r} matchIdx={editMatch.m} pairings={pairings} setPairings={setPairings} onBack={()=>setEditMatch(null)}/>;
+  if(editMatch) return <PairingEditor roundId={editMatch.r} matchIdx={editMatch.m} pairings={pairings} setPairings={setPairings} authLevel={authLevel} onBack={()=>setEditMatch(null)}/>;
 
   const r=ROUNDS.find(x=>x.id===round);
+  const visible = roundVisible(confirmed, round) || authLevel==="commish";
+  const fullyPaired = roundFullyPaired(pairings, round);
+  const canConfirmUSA = (authLevel==="usa"||authLevel==="commish") && fullyPaired;
+  const canConfirmEUR = (authLevel==="eur"||authLevel==="commish") && fullyPaired;
 
   return (
     <div>
       {pinModal&&(
         <div className="modal-overlay" onClick={()=>setPinModal(false)}>
           <div className="modal" onClick={e=>e.stopPropagation()}>
-            <div className="modal-title">🔐 Captain Mode</div>
-            <p className="modal-sub">Enter PIN to edit pairings</p>
-            <input className={`pin-input ${pinErr?"pin-err":""}`} type="password" maxLength={6} placeholder="PIN" value={pinInput} onChange={e=>{setPinInput(e.target.value);setPinErr(false);}} onKeyDown={e=>e.key==="Enter"&&tryPin()} autoFocus/>
+            <div className="modal-title">🔐 Secure Access</div>
+            <p className="modal-sub">Enter your PIN to continue</p>
+            <input className={`pin-input ${pinErr?"pin-err":""}`} type="password" maxLength={6}
+              placeholder="PIN" value={pinInput}
+              onChange={e=>{setPinInput(e.target.value);setPinErr(false);}}
+              onKeyDown={e=>e.key==="Enter"&&tryPin()} autoFocus/>
             {pinErr&&<p className="pin-errmsg">Incorrect PIN</p>}
             <button className="modal-btn" onClick={tryPin}>Unlock</button>
           </div>
         </div>
       )}
+
       <div className="round-tabs">
         {ROUNDS.map(x=>(
           <button key={x.id} className={`round-tab ${round===x.id?"rtab-on":""}`} onClick={()=>setRound(x.id)}>
@@ -578,52 +619,102 @@ function MatchesPage({pairings,setPairings,scores,setScores,captainMode,setCapta
           </button>
         ))}
       </div>
+
       <div className="round-info-bar">
         <span className="rib-format">{r.format}</span>
         <span className="rib-meta">{r.time} · {r.course}</span>
-        <button className={`captain-btn ${captainMode?"captain-on":""}`} onClick={()=>captainMode?setCaptainMode(false):setPinModal(true)}>
-          {captainMode?"🔓 Captain":"🔐 Captain"}
-        </button>
+        {authLevel ? (
+          <button className="captain-btn captain-on" onClick={()=>setAuthLevel(null)}>
+            🔓 {authLevel==="commish"?"Commish":authLevel.toUpperCase()+" Capt"}
+          </button>
+        ) : (
+          <button className="captain-btn" onClick={()=>setPinModal(true)}>🔐 Login</button>
+        )}
       </div>
-      <div className="match-list">
-        {pairings[round].map((match,mi)=>{
-          const ids=r.singles?[match.teamA[0],match.teamB[0]]:[...match.teamA,...match.teamB];
-          const valid=ids.every(Boolean);
-          let status="Not started";
-          if(valid){
-            const ss=calcStrokes(ids,r.course);
-            const hs=Array.from({length:18},(_,hi)=>ids.map((_,pi)=>scores[round][mi][hi][pi]));
-            status=scoreMatch(hs,ss,r.course,r.singles).final;
-          }
-          const sColor=status.startsWith("USA")?"var(--usa)":status.startsWith("EUR")?"var(--eur)":status==="AS"?"#aaa":"#666";
-          const aIds=match.teamA.filter(Boolean), bIds=match.teamB.filter(Boolean);
-          const slots=r.singles?1:2;
-          return (
-            <div key={mi} className="match-card">
-              <div className="mc-num">Match {mi+1}</div>
-              <div className="mc-body" onClick={()=>valid&&setActiveMatch({r:round,m:mi})}>
-                <div className="mc-team">
-                  <span className="mc-team-label usa-label">🇺🇸 USA</span>
-                  <div className="mc-players">
-                    {aIds.map(id=>{const p=byId(id);return(<span key={id} className="mc-player"><span className="mc-dot" style={{background:p.color}}/>{p.name}<span className="mc-hcp">{p.hcp}</span></span>);})}
-                    {aIds.length<slots&&<span className="mc-tbd">TBD</span>}
+
+      {/* Confirm buttons */}
+      {(authLevel==="usa"||authLevel==="eur"||authLevel==="commish") && fullyPaired && (
+        <div className="confirm-bar">
+          <button
+            className={`confirm-btn ${confirmed[round].usa?"confirmed-on":""}`}
+            disabled={!canConfirmUSA}
+            onClick={()=>(authLevel==="usa"||authLevel==="commish")&&toggleConfirm("usa")}>
+            🇺🇸 USA {confirmed[round].usa?"✓ Confirmed":"Confirm Ready"}
+          </button>
+          <button
+            className={`confirm-btn ${confirmed[round].eur?"confirmed-on":""}`}
+            disabled={!canConfirmEUR}
+            onClick={()=>(authLevel==="eur"||authLevel==="commish")&&toggleConfirm("eur")}>
+            🇪🇺 EUR {confirmed[round].eur?"✓ Confirmed":"Confirm Ready"}
+          </button>
+        </div>
+      )}
+
+      {/* Hidden message when not yet confirmed */}
+      {!visible && (
+        <div className="pairings-hidden">
+          <div className="ph-icon">🔒</div>
+          <div className="ph-title">Pairings Not Yet Released</div>
+          <div className="ph-sub">
+            {confirmed[round].usa && !confirmed[round].eur ? "Waiting on EUR captain..." :
+             !confirmed[round].usa && confirmed[round].eur ? "Waiting on USA captain..." :
+             "Both captains must confirm before pairings are visible"}
+          </div>
+          <div className="ph-status">
+            <span className={confirmed[round].usa?"ph-ok":"ph-wait"}>🇺🇸 USA {confirmed[round].usa?"✓":"..."}</span>
+            <span className={confirmed[round].eur?"ph-ok":"ph-wait"}>🇪🇺 EUR {confirmed[round].eur?"✓":"..."}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Match list - only shown when visible or commish */}
+      {visible && (
+        <div className="match-list">
+          {pairings[round].map((match,mi)=>{
+            const ids=r.singles?[match.teamA[0],match.teamB[0]]:[...match.teamA,...match.teamB];
+            const valid=ids.every(Boolean);
+            let status="Not started";
+            if(valid){
+              const ss=calcStrokes(ids,r.course);
+              const hs=Array.from({length:18},(_,hi)=>ids.map((_,pi)=>scores[round][mi][hi][pi]));
+              status=scoreMatch(hs,ss,r.course,r.singles).final;
+            }
+            const sColor=status.startsWith("USA")?"#B22234":status.startsWith("EUR")?"#FFCD00":status==="AS"?"#aaa":"#666";
+            const aIds=match.teamA.filter(Boolean), bIds=match.teamB.filter(Boolean);
+            const slots=r.singles?1:2;
+            const canEdit = authLevel==="commish" ||
+              (authLevel==="usa" && match.teamA.some(Boolean)||!match.teamA.some(Boolean)) ||
+              (authLevel==="eur" && match.teamB.some(Boolean)||!match.teamB.some(Boolean));
+
+            return (
+              <div key={mi} className="match-card">
+                <div className="mc-num">Match {mi+1}</div>
+                <div className="mc-body" onClick={()=>valid&&setActiveMatch({r:round,m:mi})}>
+                  <div className="mc-team">
+                    <span className="mc-team-label usa-label">🇺🇸 USA</span>
+                    <div className="mc-players">
+                      {aIds.map(id=>{const p=byId(id);return(<span key={id} className="mc-player"><span className="mc-dot" style={{background:p.color}}/>{p.name}<span className="mc-hcp">{p.hcp}</span></span>);})}
+                      {aIds.length<slots&&<span className="mc-tbd">TBD</span>}
+                    </div>
+                  </div>
+                  <div className="mc-status" style={{color:sColor}}>{status}</div>
+                  <div className="mc-team mc-team-r">
+                    <span className="mc-team-label eur-label">🇪🇺 EUR</span>
+                    <div className="mc-players mc-players-r">
+                      {bIds.map(id=>{const p=byId(id);return(<span key={id} className="mc-player"><span className="mc-dot" style={{background:p.color}}/>{p.name}<span className="mc-hcp">{p.hcp}</span></span>);})}
+                      {bIds.length<slots&&<span className="mc-tbd">TBD</span>}
+                    </div>
                   </div>
                 </div>
-                <div className="mc-status" style={{color:sColor}}>{status}</div>
-                <div className="mc-team mc-team-r">
-                  <span className="mc-team-label eur-label">🇪🇺 EUR</span>
-                  <div className="mc-players mc-players-r">
-                    {bIds.map(id=>{const p=byId(id);return(<span key={id} className="mc-player"><span className="mc-dot" style={{background:p.color}}/>{p.name}<span className="mc-hcp">{p.hcp}</span></span>);})}
-                    {bIds.length<slots&&<span className="mc-tbd">TBD</span>}
-                  </div>
-                </div>
+                {(authLevel==="usa"||authLevel==="eur"||authLevel==="commish") && (
+                  <button className="mc-edit-btn" onClick={()=>setEditMatch({r:round,m:mi})}>✏️ Edit Pairing</button>
+                )}
+                {valid&&<button className="mc-score-btn" onClick={()=>setActiveMatch({r:round,m:mi})}>Enter Scores →</button>}
               </div>
-              {captainMode&&<button className="mc-edit-btn" onClick={()=>setEditMatch({r:round,m:mi})}>✏️ Edit Pairing</button>}
-              {valid&&<button className="mc-score-btn" onClick={()=>setActiveMatch({r:round,m:mi})}>Enter Scores →</button>}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -807,7 +898,7 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
   );
 }
 
-function PairingEditor({roundId,matchIdx,pairings,setPairings,onBack}) {
+function PairingEditor({roundId,matchIdx,pairings,setPairings,authLevel,onBack}) {
   const r=ROUNDS.find(x=>x.id===roundId);
   const match=pairings[roundId][matchIdx];
   const slots=r.singles?1:2;
@@ -815,7 +906,11 @@ function PairingEditor({roundId,matchIdx,pairings,setPairings,onBack}) {
   const [teamB,setTeamB]=useState([...match.teamB]);
   const usedElsewhere=new Set(pairings[roundId].flatMap((m,mi)=>mi===matchIdx?[]:r.singles?[m.teamA[0],m.teamB[0]]:[...m.teamA,...m.teamB]).filter(Boolean));
 
-  function toggle(team,setTeam,pid){
+  const canEditUSA = authLevel==="usa"||authLevel==="commish";
+  const canEditEUR = authLevel==="eur"||authLevel==="commish";
+
+  function toggle(team,setTeam,pid,canEdit){
+    if(!canEdit) return;
     setTeam(prev=>{
       if(prev.includes(pid))return prev.map(x=>x===pid?null:x);
       const ni=prev.indexOf(null);
@@ -826,44 +921,65 @@ function PairingEditor({roundId,matchIdx,pairings,setPairings,onBack}) {
   }
 
   function save(){
-    setPairings(prev=>{const n=JSON.parse(JSON.stringify(prev));n[roundId][matchIdx]={...n[roundId][matchIdx],teamA,teamB};return n;});
+    setPairings(prev=>{
+      const n=JSON.parse(JSON.stringify(prev));
+      if(canEditUSA) n[roundId][matchIdx].teamA=teamA;
+      if(canEditEUR) n[roundId][matchIdx].teamB=teamB;
+      return n;
+    });
     onBack();
   }
+
+  const sides = [
+    {label:"🇺🇸 USA",team:teamA,setTeam:setTeamA,candidates:PLAYERS.filter(p=>p.team==="USA"),cls:"usa-slot",canEdit:canEditUSA},
+    {label:"🇪🇺 EUR",team:teamB,setTeam:setTeamB,candidates:PLAYERS.filter(p=>p.team==="EUR"),cls:"eur-slot",canEdit:canEditEUR},
+  ];
 
   return (
     <div>
       <button className="back-btn" onClick={onBack}>← Cancel</button>
-      <div className="pe-header"><div className="pe-title">Edit Pairing</div><div className="pe-sub">{r.label} · Match {matchIdx+1} · {r.format}</div></div>
-      {[{label:"🇺🇸 USA",team:teamA,setTeam:setTeamA,candidates:PLAYERS.filter(p=>p.team==="USA"),cls:"usa-slot"},
-        {label:"🇪🇺 EUR",team:teamB,setTeam:setTeamB,candidates:PLAYERS.filter(p=>p.team==="EUR"),cls:"eur-slot"}
-      ].map(({label,team,setTeam,candidates,cls})=>(
-        <div key={label} className="pe-section">
-          <div className="pe-team-label">{label}</div>
+      <div className="pe-header">
+        <div className="pe-title">Edit Pairing</div>
+        <div className="pe-sub">{r.label} · Match {matchIdx+1} · {r.format}</div>
+        <div className="pe-auth-label">
+          {authLevel==="commish"?"🛡️ Commish — full access":authLevel==="usa"?"🇺🇸 USA Captain — editing USA side only":"🇪🇺 EUR Captain — editing EUR side only"}
+        </div>
+      </div>
+
+      {sides.map(({label,team,setTeam,candidates,cls,canEdit})=>(
+        <div key={label} className={`pe-section ${!canEdit?"pe-locked":""}`}>
+          <div className="pe-team-label">{label} {!canEdit&&<span className="pe-lock-badge">🔒 locked</span>}</div>
           <div className="pe-slots">
             {Array.from({length:slots},(_,si)=>{
               const pid=team[si];const p=pid?byId(pid):null;
               return (
                 <div key={si} className={`pe-slot ${cls} ${p?"pe-filled":""}`}>
-                  {p?<span className="pe-player"><span className="pe-dot" style={{background:p.color}}/>{p.name}<span className="pe-hcp">HCP {p.hcp}</span><button className="pe-remove" onClick={()=>toggle(team,setTeam,pid)}>×</button></span>:<span className="pe-empty">Select player</span>}
+                  {p?<span className="pe-player">
+                    <span className="pe-dot" style={{background:p.color}}/>
+                    {p.name}<span className="pe-hcp">HCP {p.hcp}</span>
+                    {canEdit&&<button className="pe-remove" onClick={()=>toggle(team,setTeam,pid,canEdit)}>×</button>}
+                  </span>:<span className="pe-empty">{canEdit?"Select player":"—"}</span>}
                 </div>
               );
             })}
           </div>
-          <div className="pe-roster">
-            {candidates.map(p=>{
-              const inTeam=team.includes(p.id);const elsewhere=usedElsewhere.has(p.id);
-              return (
-                <button key={p.id} className={`pe-player-btn ${inTeam?"pe-selected":""} ${elsewhere&&!inTeam?"pe-used":""}`}
-                  style={inTeam?{borderColor:p.color,background:p.color,color:p.textColor||"#fff"}:{}}
-                  onClick={()=>!elsewhere&&toggle(team,setTeam,p.id)} disabled={elsewhere&&!inTeam}>
-                  <span className="pe-p-dot" style={{background:p.color}}/>
-                  <span className="pe-p-name">{p.name}</span>
-                  <span className="pe-p-hcp">{p.hcp}</span>
-                  {elsewhere&&!inTeam&&<span className="pe-p-used">in use</span>}
-                </button>
-              );
-            })}
-          </div>
+          {canEdit&&(
+            <div className="pe-roster">
+              {candidates.map(p=>{
+                const inTeam=team.includes(p.id);const elsewhere=usedElsewhere.has(p.id);
+                return (
+                  <button key={p.id} className={`pe-player-btn ${inTeam?"pe-selected":""} ${elsewhere&&!inTeam?"pe-used":""}`}
+                    style={inTeam?{borderColor:p.color,background:p.color,color:p.textColor||"#fff"}:{}}
+                    onClick={()=>!elsewhere&&toggle(team,setTeam,p.id,canEdit)} disabled={elsewhere&&!inTeam}>
+                    <span className="pe-p-dot" style={{background:p.color}}/>
+                    <span className="pe-p-name">{p.name}</span>
+                    <span className="pe-p-hcp">{p.hcp}</span>
+                    {elsewhere&&!inTeam&&<span className="pe-p-used">in use</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       ))}
       <button className="save-btn" onClick={save}>Save Pairing</button>
@@ -871,12 +987,48 @@ function PairingEditor({roundId,matchIdx,pairings,setPairings,onBack}) {
   );
 }
 
-function PlayersPage() {
+
+
+function PlayerEditor({player,onSave,onClose}) {
+  const [name,setName]=useState(player.name);
+  const [team,setTeam]=useState(player.team);
+  const [hcp,setHcp]=useState(player.hcp);
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{width:"min(340px,95vw)"}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-title">✏️ Edit Player</div>
+        <div className="player-edit-form">
+          <label className="pe-form-label">Name</label>
+          <input className="pe-form-input" value={name} onChange={e=>setName(e.target.value)}/>
+          <label className="pe-form-label">Team</label>
+          <div className="pe-team-btns">
+            <button className={`pe-team-btn ${team==="USA"?"ptb-on-usa":""}`} onClick={()=>setTeam("USA")}>🇺🇸 USA</button>
+            <button className={`pe-team-btn ${team==="EUR"?"ptb-on-eur":""}`} onClick={()=>setTeam("EUR")}>🇪🇺 EUR</button>
+          </div>
+          <label className="pe-form-label">Handicap</label>
+          <div className="hcp-ctrl">
+            <button className="hcp-btn" onClick={()=>setHcp(h=>Math.max(0,h-1))}>−</button>
+            <span className="hcp-val">{hcp}</span>
+            <button className="hcp-btn" onClick={()=>setHcp(h=>h+1)}>+</button>
+          </div>
+        </div>
+        <button className="modal-btn" style={{marginTop:14}} onClick={()=>onSave({name,team,hcp})}>Save Changes</button>
+        <button className="modal-btn" style={{marginTop:8,background:"rgba(255,255,255,.08)",color:"var(--cream)"}} onClick={onClose}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function PlayersPage({authLevel,playerOverrides,setPlayerOverrides}) {
   const [filter,setFilter]=useState("ALL");
   const [sel,setSel]=useState(null);
-  const list=filter==="ALL"?PLAYERS:PLAYERS.filter(p=>p.team===filter);
+  const list=filter==="ALL"?resolvedPlayers:resolvedPlayers.filter(p=>p.team===filter);
   const sp=sel?PLAYERS.find(p=>p.id===sel):null;
   const sc=sp?CAREER[sp.id]:null;
+  const [editingPlayer,setEditingPlayer]=useState(null);
+  // Merge overrides into player list
+  const resolvedPlayers = PLAYERS.map(p=>playerOverrides[p.id]?{...p,...playerOverrides[p.id]}:p);
+  const resolvedSp = sp ? resolvedPlayers.find(p=>p.id===sp.id) : null;
   return (
     <div>
       <div className="filter-bar">
@@ -904,7 +1056,7 @@ function PlayersPage() {
             <div className="bio-av" style={{background:sp.color,color:sp.textColor||"#fff"}}>{sp.av}</div>
             <div>
               <div className="bio-name" style={{color:sp.color}}>{sp.name}{sp.captain&&<span className="cap-badge" style={{background:sp.color,color:sp.textColor}}>CAPTAIN</span>}</div>
-              <div className="bio-meta">{sp.team==="USA"?"🇺🇸 Team USA":"🇪🇺 Team EUR"} · {sc.tier}</div>
+              <div className="bio-meta">{(resolvedSp||sp).team==="USA"?"🇺🇸 Team USA":"🇪🇺 Team EUR"} · {sc.tier}</div>
               <div className="bio-meta">PMI Handicap {sp.hcp}</div>
             </div>
           </div>
