@@ -1022,62 +1022,97 @@ function PlayerEditor({player,onSave,onClose}) {
 function PlayersPage({authLevel,playerOverrides,setPlayerOverrides}) {
   const [filter,setFilter]=useState("ALL");
   const [sel,setSel]=useState(null);
-  const list=filter==="ALL"?resolvedPlayers:resolvedPlayers.filter(p=>p.team===filter);
-  const sp=sel?PLAYERS.find(p=>p.id===sel):null;
-  const sc=sp?CAREER[sp.id]:null;
   const [editingPlayer,setEditingPlayer]=useState(null);
-  // Merge overrides into player list
-  const resolvedPlayers = PLAYERS.map(p=>playerOverrides[p.id]?{...p,...playerOverrides[p.id]}:p);
-  const resolvedSp = sp ? resolvedPlayers.find(p=>p.id===sp.id) : null;
+
+  // Merge overrides into player list — defined BEFORE use
+  const resolvedPlayers = PLAYERS.map(p=>
+    playerOverrides&&playerOverrides[p.id] ? {...p,...playerOverrides[p.id]} : p
+  );
+
+  const list = filter==="ALL" ? resolvedPlayers : resolvedPlayers.filter(p=>p.team===filter);
+  const rsp = sel ? resolvedPlayers.find(p=>p.id===sel) : null; // resolved selected player
+  const sc  = rsp ? CAREER[rsp.id] : null;
+
+  function savePlayerEdit(updates) {
+    setPlayerOverrides(prev=>({...prev,[editingPlayer.id]:{...(prev[editingPlayer.id]||{}),...updates}}));
+    setEditingPlayer(null);
+    setSel(null); // reset so bio refreshes
+  }
+
   return (
     <div>
+      {/* Commish player editor modal */}
+      {editingPlayer&&(
+        <PlayerEditor
+          player={editingPlayer}
+          onSave={savePlayerEdit}
+          onClose={()=>setEditingPlayer(null)}
+        />
+      )}
+
       <div className="filter-bar">
         {["ALL","USA","EUR"].map(f=>(
           <button key={f} className={`filter-btn ${filter===f?"filter-on":""}`}
-            style={filter===f&&f==="USA"?{background:"rgba(52,152,219,.25)",borderColor:"#3498db",color:"#5dade2"}:filter===f&&f==="EUR"?{background:"rgba(241,196,15,.15)",borderColor:"#f1c40f",color:"#f4d03f"}:{}}
+            style={filter===f&&f==="USA"?{background:"rgba(178,34,52,.2)",borderColor:"#B22234",color:"#e05060"}:filter===f&&f==="EUR"?{background:"rgba(255,205,0,.1)",borderColor:"#FFCD00",color:"#FFCD00"}:{}}
             onClick={()=>{setFilter(f);setSel(null);}}>
             {f==="USA"?"🇺🇸 USA":f==="EUR"?"🇪🇺 EUR":"All Players"}
           </button>
         ))}
       </div>
+
       <div className="player-grid">
         {list.map(p=>(
-          <div key={p.id} className={`pcard ${sel===p.id?"pcard-sel":""}`} style={sel===p.id?{borderColor:p.color}:{}} onClick={()=>setSel(sel===p.id?null:p.id)}>
-            <div className="pcard-av" style={{background:p.color,color:p.textColor||"#fff"}}>{p.captain&&<div className="pcard-star">★</div>}{p.av}</div>
+          <div key={p.id} className={`pcard ${sel===p.id?"pcard-sel":""}`}
+            style={sel===p.id?{borderColor:p.color}:{}}
+            onClick={()=>setSel(sel===p.id?null:p.id)}>
+            <div className="pcard-av" style={{background:p.color,color:p.textColor||"#fff"}}>
+              {p.captain&&<div className="pcard-star">★</div>}
+              {p.av}
+            </div>
             <div className="pcard-name">{p.name}</div>
             <div className={`pcard-team ${p.team==="USA"?"pt-usa":"pt-eur"}`}>{p.team}</div>
             <div className="pcard-hcp">HCP {p.hcp}</div>
           </div>
         ))}
       </div>
-      {sp&&sc&&(
-        <div className="bio-card" style={{borderTopColor:sp.color}}>
+
+      {rsp&&sc&&(
+        <div className="bio-card" style={{borderTopColor:rsp.color}}>
           <div className="bio-top">
-            <div className="bio-av" style={{background:sp.color,color:sp.textColor||"#fff"}}>{sp.av}</div>
-            <div>
-              <div className="bio-name" style={{color:sp.color}}>{sp.name}{sp.captain&&<span className="cap-badge" style={{background:sp.color,color:sp.textColor}}>CAPTAIN</span>}</div>
-              <div className="bio-meta">{(resolvedSp||sp).team==="USA"?"🇺🇸 Team USA":"🇪🇺 Team EUR"} · {sc.tier}</div>
-              <div className="bio-meta">PMI Handicap {sp.hcp}</div>
+            <div className="bio-av" style={{background:rsp.color,color:rsp.textColor||"#fff"}}>{rsp.av}</div>
+            <div style={{flex:1}}>
+              <div className="bio-name" style={{color:rsp.color}}>
+                {rsp.name}
+                {rsp.captain&&<span className="cap-badge" style={{background:rsp.color,color:rsp.textColor}}>CAPTAIN</span>}
+              </div>
+              <div className="bio-meta">{rsp.team==="USA"?"🇺🇸 Team USA":"🇪🇺 Team EUR"} · {sc.tier}</div>
+              <div className="bio-meta">PMI Handicap {rsp.hcp}</div>
             </div>
+            {authLevel==="commish"&&(
+              <button className="edit-player-btn" onClick={()=>setEditingPlayer(rsp)}>✏️ Edit</button>
+            )}
           </div>
           <div className="bio-stats">
             {[[sc.years,"Years"],[sc.titles,"Titles"],[winPct(sc.w,sc.l,sc.t)+"%","Win %"],[sc.avg.toFixed(1),"Avg Gross"]].map(([v,l])=>(
-              <div key={l} className="bio-stat"><div className="bs-val" style={{color:sp.color}}>{v}</div><div className="bs-lbl">{l}</div></div>
+              <div key={l} className="bio-stat">
+                <div className="bs-val" style={{color:rsp.color}}>{v}</div>
+                <div className="bs-lbl">{l}</div>
+              </div>
             ))}
           </div>
           <div className="bio-recs">
-            <div className="br-row"><span>Career Record</span><strong style={{color:sp.color}}>{sc.w}–{sc.l}–{sc.t}</strong></div>
-            <div className="br-row"><span>Singles Record</span><strong style={{color:sp.color}}>{sc.sw}–{sc.sl}–{sc.st}</strong></div>
-            <div className="br-row"><span>Low Round</span><strong style={{color:sp.color}}>{sc.low}</strong></div>
-            <div className="br-row"><span>High Round</span><strong style={{color:sp.color}}>{sc.high}</strong></div>
-            <div className="br-row"><span>Career Earnings</span><strong style={{color:sp.color}}>{sc.money}</strong></div>
+            <div className="br-row"><span>Career Record</span><strong style={{color:rsp.color}}>{sc.w}–{sc.l}–{sc.t}</strong></div>
+            <div className="br-row"><span>Singles Record</span><strong style={{color:rsp.color}}>{sc.sw}–{sc.sl}–{sc.st}</strong></div>
+            <div className="br-row"><span>Low Round</span><strong style={{color:rsp.color}}>{sc.low}</strong></div>
+            <div className="br-row"><span>High Round</span><strong style={{color:rsp.color}}>{sc.high}</strong></div>
+            <div className="br-row"><span>Career Earnings</span><strong style={{color:rsp.color}}>{sc.money}</strong></div>
             <div className="br-row">
               <span>🏅 MVG Awards</span>
-              <strong style={{color:sc.mvg>0?"#f0c040":sp.color}}>{sc.mvg>0?`${sc.mvg}x`:"—"}</strong>
+              <strong style={{color:sc.mvg>0?"#f0c040":rsp.color}}>{sc.mvg>0?`${sc.mvg}x`:"—"}</strong>
             </div>
             <div className="br-row">
               <span>🥴 Ratliff Award</span>
-              <strong style={{color:sc.rvg>0?"#e55":sp.color}}>{sc.rvg>0?`${sc.rvg}x`:"—"}</strong>
+              <strong style={{color:sc.rvg>0?"#e55":rsp.color}}>{sc.rvg>0?`${sc.rvg}x`:"—"}</strong>
             </div>
           </div>
         </div>
@@ -1085,6 +1120,7 @@ function PlayersPage({authLevel,playerOverrides,setPlayerOverrides}) {
     </div>
   );
 }
+
 
 const SCHED=[
   {day:"Thursday",date:"Jul 16",rounds:[{time:"3:00 PM",course:"Retreat",fmt:"2-Man Scramble",ggid:"PMITHURS26",rules:"Both players tee off. Best shot selected; both play from there. Repeat until holed. Low score wins hole.",color:"#27ae60"}]},
