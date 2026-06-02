@@ -409,7 +409,14 @@ const PINS = {
   commish: "2285",   // Commish (full access)
 };
 
-const byId = id => PLAYERS.find(p=>p.id===id);
+// Module-level override store — updated by App whenever playerOverrides changes
+let _playerOverrides = {};
+const byId = id => {
+  const p = PLAYERS.find(p=>p.id===id);
+  if(!p) return p;
+  return _playerOverrides[id] ? {...p,..._playerOverrides[id]} : p;
+};
+const allPlayers = () => PLAYERS.map(p => _playerOverrides[p.id] ? {...p,..._playerOverrides[p.id]} : p);
 const isUSAWin = h => h.w.toLowerCase().includes("usa")||h.w.toLowerCase().includes("sears");
 const winPct = (w,l,t) => { const n=w+l+t; return n?Math.round(((w+t*.5)/n)*100):0; };
 
@@ -497,7 +504,12 @@ function App() {
   const [authLevel,setAuthLevel]=useState(null); // null | "usa" | "eur" | "commish"
   const [confirmed,setConfirmed]=useState(initConfirmed);
   const [playerOverrides,setPlayerOverrides]=useState({}); // id -> {name,team,hcp}
+  // Keep module-level override map in sync so byId() works everywhere
+  _playerOverrides = playerOverrides;
   const {d,h,m,s,over}=useCountdown(EVENT_DATE.getTime());
+  const rPlayers = allPlayers(); // resolved player list for this render
+  const usaCaptain = rPlayers.find(p=>p.captain&&p.team==="USA")?.name ?? "USA";
+  const eurCaptain = rPlayers.find(p=>p.captain&&p.team==="EUR")?.name ?? "EUR";
 
   function calcPts(team) {
     let pts=0;
@@ -538,13 +550,13 @@ function App() {
             <div className="live-pill">🏌️ LIVE NOW</div>
           )}
           <div className="match-bar">
-            <div className="mb-team mb-usa"><span className="mb-flag">🇺🇸</span><span className="mb-name">USA</span><span className="mb-cap">Vassas</span></div>
+            <div className="mb-team mb-usa"><span className="mb-flag">🇺🇸</span><span className="mb-name">USA</span><span className="mb-cap">{usaCaptain}</span></div>
             <div className="mb-mid">
               <span className="mb-pts" style={{color:"var(--usa)"}}>{usaPts}</span>
               <span className="mb-vs">–</span>
               <span className="mb-pts" style={{color:"var(--eur)"}}>{eurPts}</span>
             </div>
-            <div className="mb-team mb-eur"><span className="mb-flag">🇪🇺</span><span className="mb-name">EUR</span><span className="mb-cap">Ed</span></div>
+            <div className="mb-team mb-eur"><span className="mb-flag">🇪🇺</span><span className="mb-name">EUR</span><span className="mb-cap">{eurCaptain}</span></div>
           </div>
         </div>
       </div>
@@ -558,8 +570,8 @@ function App() {
       </div>
 
       <div className="page">
-        {tab==="matches" && <MatchesPage pairings={pairings} setPairings={setPairings} scores={scores} setScores={setScores} authLevel={authLevel} setAuthLevel={setAuthLevel} confirmed={confirmed} setConfirmed={setConfirmed}/>}
-        {tab==="players" && <PlayersPage authLevel={authLevel} playerOverrides={playerOverrides} setPlayerOverrides={setPlayerOverrides}/>}
+        {tab==="matches" && <MatchesPage pairings={pairings} setPairings={setPairings} scores={scores} setScores={setScores} authLevel={authLevel} setAuthLevel={setAuthLevel} confirmed={confirmed} setConfirmed={setConfirmed} rPlayers={rPlayers}/>}
+        {tab==="players" && <PlayersPage authLevel={authLevel} playerOverrides={playerOverrides} setPlayerOverrides={setPlayerOverrides} rPlayers={rPlayers}/>}
         {tab==="schedule" && <SchedulePage/>}
         {tab==="history" && <HistoryPage/>}
       </div>
@@ -567,7 +579,7 @@ function App() {
   );
 }
 
-function MatchesPage({pairings,setPairings,scores,setScores,authLevel,setAuthLevel,confirmed,setConfirmed}) {
+function MatchesPage({pairings,setPairings,scores,setScores,authLevel,setAuthLevel,confirmed,setConfirmed,rPlayers}) {
   const [round,setRound]=useState("R1");
   const [activeMatch,setActiveMatch]=useState(null);
   const [editMatch,setEditMatch]=useState(null);
@@ -682,9 +694,6 @@ function MatchesPage({pairings,setPairings,scores,setScores,authLevel,setAuthLev
             const sColor=status.startsWith("USA")?"#B22234":status.startsWith("EUR")?"#FFCD00":status==="AS"?"#aaa":"#666";
             const aIds=match.teamA.filter(Boolean), bIds=match.teamB.filter(Boolean);
             const slots=r.singles?1:2;
-            const canEdit = authLevel==="commish" ||
-              (authLevel==="usa" && match.teamA.some(Boolean)||!match.teamA.some(Boolean)) ||
-              (authLevel==="eur" && match.teamB.some(Boolean)||!match.teamB.some(Boolean));
 
             return (
               <div key={mi} className="match-card">
@@ -1019,16 +1028,12 @@ function PlayerEditor({player,onSave,onClose}) {
   );
 }
 
-function PlayersPage({authLevel,playerOverrides,setPlayerOverrides}) {
+function PlayersPage({authLevel,playerOverrides,setPlayerOverrides,rPlayers}) {
   const [filter,setFilter]=useState("ALL");
   const [sel,setSel]=useState(null);
   const [editingPlayer,setEditingPlayer]=useState(null);
 
-  // Merge overrides into player list — defined BEFORE use
-  const resolvedPlayers = PLAYERS.map(p=>
-    playerOverrides&&playerOverrides[p.id] ? {...p,...playerOverrides[p.id]} : p
-  );
-
+  const resolvedPlayers = rPlayers || PLAYERS;
   const list = filter==="ALL" ? resolvedPlayers : resolvedPlayers.filter(p=>p.team===filter);
   const rsp = sel ? resolvedPlayers.find(p=>p.id===sel) : null; // resolved selected player
   const sc  = rsp ? CAREER[rsp.id] : null;
@@ -1182,8 +1187,8 @@ function SchedulePage() {
 
 function HistoryPage() {
   const usaW=HISTORY.filter(isUSAWin).length, eurW=HISTORY.length-usaW;
-  const cr=[...PLAYERS].map(p=>({...p,c:CAREER[p.id]})).filter(p=>p.c).sort((a,b)=>b.c.titles-a.c.titles);
-  const pr=[...PLAYERS].map(p=>({...p,c:CAREER[p.id]})).filter(p=>p.c&&p.c.years>=3).map(p=>({...p,pct:winPct(p.c.w,p.c.l,p.c.t)})).sort((a,b)=>b.pct-a.pct);
+  const cr=[...allPlayers()].map(p=>({...p,c:CAREER[p.id]})).filter(p=>p.c).sort((a,b)=>b.c.titles-a.c.titles);
+  const pr=[...allPlayers()].map(p=>({...p,c:CAREER[p.id]})).filter(p=>p.c&&p.c.years>=3).map(p=>({...p,pct:winPct(p.c.w,p.c.l,p.c.t)})).sort((a,b)=>b.pct-a.pct);
   return (
     <div>
       <div className="series-hero">
