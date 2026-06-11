@@ -423,11 +423,17 @@ function getPlayerScores(scores, pairings, roundId) {
   const r = ROUNDS.find(x => x.id === roundId);
   const result = {};
   pairings[roundId].forEach((match, mi) => {
-    const ids = r.singles ? [match.teamA[0], match.teamB[0]] : [...match.teamA, ...match.teamB];
-    ids.forEach((id, pi) => {
-      if (!id) return;
-      result[id] = Array.from({length:18}, (_, hi) => scores[roundId][mi][hi][pi]);
-    });
+    if(r.teamScore) {
+      // Team rounds: slot 0 = team A score, slot 2 = team B score
+      // Both players on each team share the same score for skins
+      const teamAScore = Array.from({length:18},(_,hi)=>scores[roundId][mi][hi][0]);
+      const teamBScore = Array.from({length:18},(_,hi)=>scores[roundId][mi][hi][2]);
+      match.teamA.filter(Boolean).forEach(id=>{ result[id]=teamAScore; });
+      match.teamB.filter(Boolean).forEach(id=>{ result[id]=teamBScore; });
+    } else {
+      const ids = r.singles?[match.teamA[0],match.teamB[0]]:[...match.teamA,...match.teamB];
+      ids.forEach((id,pi)=>{ if(!id) return; result[id]=Array.from({length:18},(_,hi)=>scores[roundId][mi][hi][pi]); });
+    }
   });
   return result;
 }
@@ -519,7 +525,7 @@ function playerRoundMoney(playerId, roundId, scores, pairings, greenieData) {
   pairings[roundId].forEach((match, mi) => {
     const ids = r.singles ? [match.teamA[0], match.teamB[0]] : [...match.teamA, ...match.teamB];
     if (!ids.includes(playerId) || ids.some(id => !id)) return;
-    const ss = calcStrokes(ids, r.course);
+    const ss = r.teamScore ? calcTeamStrokes(match.teamA,match.teamB,r.course,r.format) : calcStrokes(ids, r.course);
     const hs = Array.from({length:18}, (_, hi) => ids.map((_, pi) => scores[r.id][mi][hi][pi]));
     const {final} = scoreMatch(hs, ss, r.course, r.singles);
     if (!final || final==='AS' || final==='HALVED') return;
@@ -681,7 +687,8 @@ function calcTournamentRecords(scores, pairings) {
 // Gross score per player per round (only if all 18 holes entered)
 function calcGrossPerRound(scores, pairings) {
   const result = {};
-  ROUNDS.forEach(r => {
+  // Only individual rounds (R2 Four-Ball, R4 Singles) count toward personal gross
+  ROUNDS.filter(r=>!r.teamScore).forEach(r => {
     pairings[r.id].forEach((match,mi) => {
       const ids = r.singles?[match.teamA[0],match.teamB[0]]:[...match.teamA,...match.teamB];
       ids.forEach((id,pi) => {
@@ -1675,7 +1682,7 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
   // Hole-by-hole scoring view
   const match = pairings[round][matchIdx];
   const ids = r.singles ? [match.teamA[0],match.teamB[0]] : [...match.teamA,...match.teamB];
-  const ss = calcStrokes(ids, r.course);
+  const ss = r.teamScore ? calcTeamStrokes(match.teamA,match.teamB,r.course,r.format) : calcStrokes(ids, r.course);
   const holeScores = ids.map((_, pi) => scores[round][matchIdx][holeIdx][pi]);
   const nets = ids.map((id, pi) => {
     const g = holeScores[pi];
@@ -1684,7 +1691,7 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
 
   // Running match status
   const allHoleScores = Array.from({length:18}, (_, hi) => ids.map((_, pi) => scores[round][matchIdx][hi][pi]));
-  const {holeStatus, holeResults} = scoreMatch(allHoleScores, ss, r.course, r.singles);
+  const {holeStatus, holeResults} = scoreMatch(allHoleScores, ss, r.course, r.singles, r.teamScore||false);
   const currentStatus = holeStatus.filter(Boolean).at(-1) ?? "AS";
   const statusColor = currentStatus.startsWith("USA")?"#B22234":currentStatus.startsWith("EUR")?"#FFCD00":"var(--cream)";
 
@@ -1735,30 +1742,58 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
         </div>
 
         <div className="hec-divider usa-divider"/>
-        {ids.map((id, pi) => {
-          const p = byId(id);
-          const g = holeScores[pi];
-          const net = nets[pi];
-          const isUSA = pi < (r.singles?1:2);
-          if (pi === (r.singles?1:2)) return <div key="div" className="hec-divider eur-divider"/>;
-          return (
-            <div key={id} className="hec-player-row">
-              <div className="hpr-info">
-                <span className="hpr-dot" style={{background:p.color}}/>
-                <span className="hpr-name">{p.name}</span>
-                <span className="hpr-hcp">HCP {p.hcp}</span>
-                {ss[pi].has(holeIdx) && <span className="hpr-stroke">+1</span>}
-                {net !== null && <span className="hpr-net">net {net}</span>}
+        {r.teamScore ? (
+          // Team score entry: 1 score per team (stored at pi=0 for USA, pi=2 for EUR)
+          [{label:"🇺🇸 "+teamUSA.filter(Boolean).map(id=>byId(id).name).join(" + "), pi:0, team:"usa"},
+           {label:"🇪🇺 "+teamEUR.filter(Boolean).map(id=>byId(id).name).join(" + "), pi:2, team:"eur"}
+          ].map(({label,pi,team})=>{
+            const g = scores[round][matchIdx][holeIdx][pi];
+            const tIds = pi===0?teamUSA:teamEUR;
+            const tHcp = teamHandicap(tIds.filter(Boolean), r.format);
+            const tStroke = ss[pi].has(holeIdx);
+            const netScore = g!=null ? g-(tStroke?1:0) : null;
+            return (
+              <div key={pi} className="hec-player-row">
+                <div className="hpr-info">
+                  <span className={`hpr-team-label ${team==="usa"?"usa-label":"eur-label"}`}>{label}</span>
+                  <span className="hpr-hcp">HCP {tHcp}</span>
+                  {tStroke&&<span className="hpr-stroke">+1</span>}
+                  {netScore!==null&&<span className="hpr-net">net {netScore}</span>}
+                </div>
+                <div className="hpr-controls">
+                  <button className="hpr-btn" onClick={()=>setScore(holeIdx,pi,Math.max(1,(g??course.par[holeIdx])-1))}>−</button>
+                  <span className={`hpr-score ${g!=null?"hpr-scored":""}`}>{g??'–'}</span>
+                  <button className="hpr-btn" onClick={()=>setScore(holeIdx,pi,(g??course.par[holeIdx])+1)}>+</button>
+                  {g!=null&&<button className="hpr-clear" onClick={()=>setScore(holeIdx,pi,null)}>×</button>}
+                </div>
               </div>
-              <div className="hpr-controls">
-                <button className="hpr-btn" onClick={()=>setScore(holeIdx,pi,Math.max(1,(g??course.par[holeIdx])-1))}>−</button>
-                <span className={`hpr-score ${g!=null?"hpr-scored":""}`}>{g??'–'}</span>
-                <button className="hpr-btn" onClick={()=>setScore(holeIdx,pi,(g??course.par[holeIdx])+1)}>+</button>
-                {g!=null&&<button className="hpr-clear" onClick={()=>setScore(holeIdx,pi,null)}>×</button>}
+            );
+          })
+        ) : (
+          ids.map((id, pi) => {
+            const p = byId(id);
+            const g = holeScores[pi];
+            const net = nets[pi];
+            if (pi === (r.singles?1:2)) return <div key="div" className="hec-divider eur-divider"/>;
+            return (
+              <div key={id} className="hec-player-row">
+                <div className="hpr-info">
+                  <span className="hpr-dot" style={{background:p.color}}/>
+                  <span className="hpr-name">{p.name}</span>
+                  <span className="hpr-hcp">HCP {p.hcp}</span>
+                  {ss[pi].has(holeIdx)&&<span className="hpr-stroke">+1</span>}
+                  {net!==null&&<span className="hpr-net">net {net}</span>}
+                </div>
+                <div className="hpr-controls">
+                  <button className="hpr-btn" onClick={()=>setScore(holeIdx,pi,Math.max(1,(g??course.par[holeIdx])-1))}>−</button>
+                  <span className={`hpr-score ${g!=null?"hpr-scored":""}`}>{g??'–'}</span>
+                  <button className="hpr-btn" onClick={()=>setScore(holeIdx,pi,(g??course.par[holeIdx])+1)}>+</button>
+                  {g!=null&&<button className="hpr-clear" onClick={()=>setScore(holeIdx,pi,null)}>×</button>}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Prev / Next */}
@@ -1846,78 +1881,90 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
           {/* Sort bar */}
           <div className="sort-bar">
             <span className="sort-label">Sort:</span>
-            {[["net","Net"],["gross","Gross"],["record","Record"],["pts","Pts"],["money","Money"]].map(([id,lbl])=>(
+            {[["pts","Pts"],["net","Net"],["gross","Gross"],["record","W-L"],["money","$"]].map(([id,lbl])=>(
               <button key={id} className={`sort-btn ${sort===id?"sort-on":""}`} onClick={()=>setSort(id)}>{lbl}</button>
             ))}
           </div>
 
-          {/* Player rows */}
-          <div className="results-list">
-            {sorted.map((p,i) => {
-              const hasData = p.rec.w+p.rec.l+p.rec.t > 0 || p.grossTotal;
-              return (
-                <div key={p.id} className={`res-row ${i===0&&hasData?"res-row-top":""}`}>
-                  <div className="res-row-main">
-                    <span className="res-rank">{hasData?i+1:"—"}</span>
-                    <span className="res-av" style={{background:p.color,color:p.textColor||"#fff"}}>{p.av}</span>
-                    <div className="res-info">
-                      <span className="res-name">{p.name}</span>
-                      <span className={`res-team-badge ${p.team==="USA"?"pt-usa":"pt-eur"}`}>{p.team}</span>
-                    </div>
-                    <div className="res-stats-right">
-                      <span className="res-record" style={{color:p.rec.w>p.rec.l?"#2ecc71":p.rec.l>p.rec.w?"#e55":"#aaa"}}>
-                        {p.rec.w}–{p.rec.l}–{p.rec.t}
-                      </span>
-                      <span className="res-pts">{p.rec.pts>0?`${p.rec.pts}pts`:""}</span>
-                    </div>
-                  </div>
-                  <div className="res-scores">
-                    {ROUNDS.map((r,ri) => {
-                      const g = p.gpr[r.id]??null;
-                      const par = COURSES[r.course].par.reduce((a,b)=>a+b,0);
-                      const diff = g!==null?g-par:null;
-                      return (
-                        <div key={r.id} className="res-round">
-                          <span className="res-round-label">{r.id}</span>
-                          <span className={`res-round-score ${diff!==null?(diff<0?"score-under":diff<=3?"score-over-sm":"score-over"):"score-empty"}`}>
-                            {g??<span style={{color:"#444"}}>–</span>}
-                          </span>
-                          {diff!==null&&<span className="res-round-diff" style={{color:diff<0?"#2ecc71":diff>0?"#e55":"#aaa"}}>{diff>0?`+${diff}`:diff===0?"E":diff}</span>}
-                        </div>
-                      );
-                    })}
-                    <div className="res-round res-round-total">
-                      <span className="res-round-label">TOT</span>
-                      <span className="res-round-score" style={{color:"var(--gold2)"}}>{p.grossTotal??<span style={{color:"#444"}}>–</span>}</span>
-                    </div>
-                    <div className="res-round res-round-total">
-                      <span className="res-round-label">NET</span>
-                      <span className="res-round-score" style={{color:"#2ecc71"}}>{p.netTotal??<span style={{color:"#444"}}>–</span>}</span>
-                    </div>
-                  </div>
-                  {(p.skinsWon>0||p.money>0) && (
-                    <div className="res-badges">
-                      {p.skinsWon>0&&<span className="res-badge res-badge-skin">🎯 {p.skinsWon} skin{p.skinsWon>1?"s":""}</span>}
-                      {p.money>0&&<span className="res-badge res-badge-money">💰 ${p.money.toFixed(0)}</span>}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          {/* Table */}
+          <div className="rt-wrap">
+            <table className="rt">
+              <thead>
+                <tr>
+                  <th className="rt-sticky rt-th-player">Player</th>
+                  <th className="rt-th">W-L-T</th>
+                  <th className="rt-th">Pts</th>
+                  <th className="rt-th rt-team-col" title="Team score, not counted in individual total">R1★</th>
+                  <th className="rt-th">R2</th>
+                  <th className="rt-th rt-team-col" title="Team score, not counted in individual total">R3★</th>
+                  <th className="rt-th">R4</th>
+                  <th className="rt-th rt-sep">Gross</th>
+                  <th className="rt-th">Net</th>
+                  <th className="rt-th">💰</th>
+                </tr>
+                <tr className="rt-subhead">
+                  <td className="rt-sticky"/>
+                  <td/>
+                  <td/>
+                  <td className="rt-team-col" style={{fontSize:8,color:"var(--muted)"}}>Scramble</td>
+                  <td style={{fontSize:8,color:"var(--muted)"}}>4-Ball</td>
+                  <td className="rt-team-col" style={{fontSize:8,color:"var(--muted)"}}>Alt-Shot</td>
+                  <td style={{fontSize:8,color:"var(--muted)"}}>Singles</td>
+                  <td className="rt-sep"/>
+                  <td/>
+                  <td/>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((p,i) => {
+                  const played = p.rec.w+p.rec.l+p.rec.t > 0;
+                  const recColor = p.rec.w>p.rec.l?"#2ecc71":p.rec.l>p.rec.w?"#e55":"#aaa";
+                  const r1team = getTeamScore(p.id,"R1",pairings,scores);
+                  const r3team = getTeamScore(p.id,"R3",pairings,scores);
+                  const r2ind  = p.gpr["R2"]??null;
+                  const r4ind  = p.gpr["R4"]??null;
+                  const indRounds = [r2ind,r4ind].filter(v=>v!==null);
+                  const grossTotal = indRounds.length===2?indRounds.reduce((a,b)=>a+b,0):null;
+                  // Net = gross - (hcp per individual round × rounds played)
+                  const netTotal = grossTotal!==null ? grossTotal - (p.hcp*indRounds.length) : null;
+                  return (
+                    <tr key={p.id} className={`rt-row ${i===0&&played?"rt-row-top":""}`}>
+                      <td className="rt-sticky rt-td-player">
+                        <span className="rt-dot" style={{background:p.color}}/>
+                        <span className="rt-pname">{p.name}</span>
+                        <span className={`rt-team-badge ${p.team==="USA"?"pt-usa":"pt-eur"}`}>{p.team}</span>
+                      </td>
+                      <td className="rt-td rt-record" style={{color:recColor}}>
+                        {played?`${p.rec.w}-${p.rec.l}-${p.rec.t}`:"—"}
+                      </td>
+                      <td className="rt-td rt-pts">{p.rec.pts>0?p.rec.pts:"—"}</td>
+                      <td className="rt-td rt-team-col rt-dim">{r1team??<span className="rt-empty">—</span>}</td>
+                      <td className="rt-td rt-score">{r2ind??<span className="rt-empty">—</span>}</td>
+                      <td className="rt-td rt-team-col rt-dim">{r3team??<span className="rt-empty">—</span>}</td>
+                      <td className="rt-td rt-score">{r4ind??<span className="rt-empty">—</span>}</td>
+                      <td className="rt-td rt-sep rt-total">{grossTotal??<span className="rt-empty">—</span>}</td>
+                      <td className="rt-td rt-net">{netTotal??<span className="rt-empty">—</span>}</td>
+                      <td className="rt-td rt-money-cell">{p.money>0?`$${p.money.toFixed(0)}`:<span className="rt-empty">—</span>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
+          <p className="rt-note">★ R1/R3 are team scores (Scramble/Greensomes) — not counted in individual Gross or Net totals</p>
 
-          {/* MVG / Ratliff Guide */}
+          {/* MVG / Ratliff */}
           {active.length > 0 && (
             <div className="award-section">
               <div className="award-card mvg-card">
                 <div className="award-title">🏅 MVG Candidates</div>
                 <div className="award-sub">Best record · Most pts · Most skins</div>
-                {mvgCandidates.map((p,i) => (
+                {mvgCandidates.map((p) => (
                   <div key={p.id} className="award-row">
                     <span className="award-av" style={{background:p.color,color:p.textColor||"#fff"}}>{p.av}</span>
                     <span className="award-name">{p.name}</span>
                     <span className="award-stat">{p.rec.w}–{p.rec.l}–{p.rec.t}</span>
-                    {p.grossTotal&&<span className="award-stat2">Gross {p.grossTotal}</span>}
+                    <span className="award-stat2">{p.rec.pts}pts</span>
                     {p.skinsWon>0&&<span className="award-skin">🎯×{p.skinsWon}</span>}
                   </div>
                 ))}
@@ -1925,14 +1972,18 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
               <div className="award-card rat-card">
                 <div className="award-title">🥴 Ratliff Candidates</div>
                 <div className="award-sub">Worst record · Highest gross · Most losses</div>
-                {ratliffCandidates.map((p,i) => (
-                  <div key={p.id} className="award-row">
-                    <span className="award-av" style={{background:p.color,color:p.textColor||"#fff"}}>{p.av}</span>
-                    <span className="award-name">{p.name}</span>
-                    <span className="award-stat">{p.rec.w}–{p.rec.l}–{p.rec.t}</span>
-                    {p.grossTotal&&<span className="award-stat2">Gross {p.grossTotal}</span>}
-                  </div>
-                ))}
+                {ratliffCandidates.map((p) => {
+                  const r2=p.gpr["R2"]??null; const r4=p.gpr["R4"]??null;
+                  const gt=r2&&r4?r2+r4:null;
+                  return (
+                    <div key={p.id} className="award-row">
+                      <span className="award-av" style={{background:p.color,color:p.textColor||"#fff"}}>{p.av}</span>
+                      <span className="award-name">{p.name}</span>
+                      <span className="award-stat">{p.rec.w}–{p.rec.l}–{p.rec.t}</span>
+                      {gt&&<span className="award-stat2">Gross {gt}</span>}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
