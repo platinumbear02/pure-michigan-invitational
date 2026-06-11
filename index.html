@@ -1146,22 +1146,45 @@ function MatchesPage({pairings,setPairings,scores,setScores,authLevel,setAuthLev
 }
 
 function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
-  const r=ROUNDS.find(x=>x.id===roundId);
-  const match=pairings[roundId][matchIdx];
-  const ids=r.singles?[match.teamA[0],match.teamB[0]]:[...match.teamA,...match.teamB];
-  const course=COURSES[r.course];
-  const ss=calcStrokes(ids,r.course);
-  const hs=Array.from({length:18},(_,hi)=>ids.map((_,pi)=>scores[roundId][matchIdx][hi][pi]));
-  const {results,statuses,final}=scoreMatch(hs,ss,r.course,r.singles);
-  const [dtab,setDtab]=useState("entry");
-  const [openHole,setOpenHole]=useState(null);
+  const r       = ROUNDS.find(x=>x.id===roundId);
+  const match   = pairings[roundId][matchIdx];
+  const isSingles   = r.singles;
+  const isTeamScore = r.teamScore||false;
+  const course  = COURSES[r.course];
 
-  function setScore(hole,pi,val){
+  // For team rounds: only 2 effective players (slot 0 = teamA, slot 2 = teamB)
+  // For individual rounds: all 4 (or 2 for singles)
+  const ids = isSingles
+    ? [match.teamA[0], match.teamB[0]]
+    : isTeamScore
+      ? [match.teamA[0], match.teamB[0]]   // representatives for stroke calc
+      : [...match.teamA, ...match.teamB];
+
+  const ss = isTeamScore
+    ? calcTeamStrokes(match.teamA, match.teamB, r.course, r.format)
+    : calcStrokes(ids, r.course);
+
+  const hs = Array.from({length:18},(_,hi)=>
+    isTeamScore
+      ? [scores[roundId][matchIdx][hi][0], null, scores[roundId][matchIdx][hi][2], null]
+      : ids.map((_,pi)=>scores[roundId][matchIdx][hi][pi])
+  );
+  const {holeResults,holeStatus,final} = scoreMatch(hs, ss, r.course, isSingles, isTeamScore);
+
+  const [dtab, setDtab] = useState("entry");
+  const [openHole, setOpenHole] = useState(null);
+
+  function setScore(hole, pi, val){
     setScores(prev=>{const n=JSON.parse(JSON.stringify(prev));n[roundId][matchIdx][hole][pi]=val;return n;});
   }
 
-  const sColor=final.startsWith("USA")?"var(--usa)":final.startsWith("EUR")?"var(--eur)":"var(--cream)";
-  const teamPairs=r.singles?[[match.teamA],[match.teamB]]:[[match.teamA],[match.teamB]];
+  const sColor = final.startsWith("USA")?"#B22234":final.startsWith("EUR")?"#FFCD00":"var(--cream)";
+
+  // Team helpers
+  const teamAName = match.teamA.filter(Boolean).map(id=>byId(id)?.name).join(" + ");
+  const teamBName = match.teamB.filter(Boolean).map(id=>byId(id)?.name).join(" + ");
+  const teamAHcp  = teamHandicap(match.teamA.filter(Boolean), r.format);
+  const teamBHcp  = teamHandicap(match.teamB.filter(Boolean), r.format);
 
   return (
     <div>
@@ -1172,8 +1195,16 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
             <div key={ti} className="md-team">
               <span style={{fontSize:18}}>{flag}</span>
               <div className="md-names">
-                {tIds.filter(Boolean).map(id=>{const p=byId(id);return(
-                  <div key={id} className="md-player"><span className="md-dot" style={{background:p.color}}/>{p.name}<span className="md-hcp">HCP {p.hcp}</span></div>
+                {isTeamScore ? (
+                  <div className="md-player">
+                    <span>{tIds.filter(Boolean).map(id=>byId(id)?.name).join(" + ")}</span>
+                    <span className="md-hcp">HCP {ti===0?teamAHcp:teamBHcp}</span>
+                  </div>
+                ) : tIds.filter(Boolean).map(id=>{const p=byId(id);return(
+                  <div key={id} className="md-player">
+                    <span className="md-dot" style={{background:p.color}}/>{p.name}
+                    <span className="md-hcp">HCP {p.hcp}</span>
+                  </div>
                 );})}
               </div>
             </div>
@@ -1182,22 +1213,23 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
         <div className="md-status" style={{color:sColor}}>{final}</div>
         <div className="md-format">{r.format} · {r.course}</div>
       </div>
+
       <div className="detail-tabs">
         {[["entry","Score Entry"],["holes","Hole by Hole"],["card","Scorecard"]].map(([id,lbl])=>(
           <button key={id} className={`dtab ${dtab===id?"dtab-on":""}`} onClick={()=>setDtab(id)}>{lbl}</button>
         ))}
       </div>
 
+      {/* ── SCORE ENTRY ── */}
       {dtab==="entry"&&(
         <div className="entry-section">
           <p className="entry-hint">
-            {r.teamScore ? "Tap a hole to enter one team score per side" : "Tap a hole to enter gross scores for all players"}
+            {isTeamScore?"Tap a hole to enter one team score per side":"Tap a hole to enter scores for all players"}
           </p>
           {course.par.map((_,i)=>{
-            // For team rounds only check slots 0 and 2; for individual check all
-            const relevantSlots = r.teamScore ? [0,2] : ids.map((_,pi)=>pi);
-            const pScores = relevantSlots.map(pi=>scores[roundId][matchIdx][i][pi]);
-            const done = pScores.every(v=>v!=null);
+            const slots = isTeamScore?[0,2]:ids.map((_,pi)=>pi);
+            const slotScores = slots.map(pi=>scores[roundId][matchIdx][i][pi]);
+            const done = slotScores.every(v=>v!=null);
             const open = openHole===i;
             return (
               <div key={i} className={`entry-hole ${open?"entry-open":""} ${done?"entry-done":""}`}>
@@ -1209,20 +1241,18 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
                 </div>
                 {open&&(
                   <div className="eh-body">
-                    {r.teamScore ? (
-                      // Team score entry — 1 score per team
-                      [{pi:0, teamIds:match.teamA, flag:"🇺🇸", cls:"usa-label"},
-                       {pi:2, teamIds:match.teamB, flag:"🇪🇺", cls:"eur-label"}
-                      ].map(({pi,teamIds,flag,cls})=>{
+                    {isTeamScore ? (
+                      [{pi:0,name:teamAName,hcp:teamAHcp,flag:"🇺🇸",cls:"usa-label"},
+                       {pi:2,name:teamBName,hcp:teamBHcp,flag:"🇪🇺",cls:"eur-label"}
+                      ].map(({pi,name,hcp,flag,cls})=>{
                         const g=scores[roundId][matchIdx][i][pi];
-                        const tHcp=teamHandicap(teamIds.filter(Boolean),r.format);
-                        const hasStroke=ss[pi].has(i);
-                        const names=teamIds.filter(Boolean).map(id=>byId(id)?.name).join(" + ");
+                        const stroke=ss[pi].has(i);
                         return (
                           <div key={pi} className="eh-player">
-                            <span className={`eh-pname ${cls}`}>{flag} {names}
-                              {hasStroke&&<span className="eh-stroke-badge">+1</span>}
-                              <span style={{color:"var(--muted)",fontSize:10,marginLeft:4}}>HCP {tHcp}</span>
+                            <span className={`eh-pname ${cls}`} style={{flex:1}}>
+                              {flag} {name}
+                              {stroke&&<span className="eh-stroke-badge">+1</span>}
+                              <span style={{color:"var(--muted)",fontSize:10,marginLeft:4}}>HCP {hcp}</span>
                             </span>
                             <div className="eh-controls">
                               <button className="eh-btn" onClick={()=>setScore(i,pi,Math.max(1,(g??course.par[i])-1))}>−</button>
@@ -1234,13 +1264,12 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
                         );
                       })
                     ) : (
-                      // Individual score entry
                       ids.map((id,pi)=>{
-                        const p=byId(id);const g=pScores[pi];const hasStroke=ss[pi].has(i);
+                        const p=byId(id); const g=slotScores[pi]; const stroke=ss[pi].has(i);
                         return (
                           <div key={id} className="eh-player">
                             <span className="eh-dot" style={{background:p.color}}/>
-                            <span className="eh-pname">{p.name}{hasStroke&&<span className="eh-stroke-badge">+1 stroke</span>}</span>
+                            <span className="eh-pname">{p.name}{stroke&&<span className="eh-stroke-badge">+1 stroke</span>}</span>
                             <div className="eh-controls">
                               <button className="eh-btn" onClick={()=>setScore(i,pi,Math.max(1,(g??course.par[i])-1))}>−</button>
                               <span className={`eh-val ${g!=null?"eh-scored":""}`}>{g??"–"}</span>
@@ -1259,14 +1288,18 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
         </div>
       )}
 
+      {/* ── HOLE BY HOLE ── */}
       {dtab==="holes"&&(
         <div className="holes-detail">
           {course.par.map((_,i)=>{
-            const r2=results[i];const st=statuses[i];
-            const pScores=ids.map((_,pi)=>scores[roundId][matchIdx][i][pi]);
-            const nets=ids.map((id,pi)=>{const g=pScores[pi];return g!=null?g-(ss[pi].has(i)?1:0):null;});
-            const cls=r2==="A"?"hd-a":r2==="B"?"hd-b":r2==="H"?"hd-h":"";
-            const resTxt=r2==="A"?"USA":r2==="B"?"EUR":r2==="H"?"HALF":null;
+            const res=holeResults[i]; const st=holeStatus[i];
+            const aScore=scores[roundId][matchIdx][i][0];
+            const bScore=scores[roundId][matchIdx][i][isTeamScore?2:isSingles?1:2];
+            const aNet=aScore!=null?aScore-(ss[0].has(i)?1:0):null;
+            const bNet=bScore!=null?bScore-(ss[isTeamScore?2:isSingles?1:2].has(i)?1:0):null;
+            const cls=res==="A"?"hd-a":res==="B"?"hd-b":res==="H"?"hd-h":"";
+            const resTxt=res==="A"?"USA":res==="B"?"EUR":res==="H"?"HALF":null;
+            if(!aScore&&!bScore&&!res) return null;
             return (
               <div key={i} className={`hole-detail-card ${cls}`}>
                 <div className="hdc-left">
@@ -1275,23 +1308,21 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
                   <span className="hdc-hcp">HCP {course.hcp[i]}</span>
                 </div>
                 <div className="hdc-scores">
-                  {ids.map((id,pi)=>{
-                    const p=byId(id);const g=pScores[pi];const n=nets[pi];const hasS=ss[pi].has(i);
-                    return (
-                      <div key={id} className="hdc-player">
-                        <span className="hdc-dot" style={{background:p.color}}/>
-                        <span className="hdc-pname">{p.name}</span>
-                        <span className="hdc-gross">{g??<span style={{color:"#444"}}>–</span>}</span>
-                        {hasS&&<span className="hdc-stroke">-1</span>}
-                        {n!=null&&<span className="hdc-net">={n}</span>}
-                      </div>
-                    );
-                  })}
+                  {[{name:isTeamScore?teamAName:byId(ids[0])?.name, score:aScore, net:aNet, pi:0, color:isTeamScore?"#B22234":byId(ids[0])?.color},
+                    {name:isTeamScore?teamBName:byId(ids[isSingles?1:2])?.name, score:bScore, net:bNet, pi:isTeamScore?2:isSingles?1:2, color:isTeamScore?"#FFCD00":byId(ids[isSingles?1:2])?.color}
+                  ].map(({name,score,net,pi,color})=>(
+                    <div key={pi} className="hdc-player">
+                      <span className="hdc-dot" style={{background:color}}/>
+                      <span className="hdc-pname">{name}</span>
+                      <span className="hdc-gross">{score??<span style={{color:"#444"}}>–</span>}</span>
+                      {ss[pi].has(i)&&<span className="hdc-stroke">-1</span>}
+                      {net!=null&&<span className="hdc-net">={net}</span>}
+                    </div>
+                  ))}
                 </div>
                 <div className="hdc-right">
-                  {resTxt&&<span className={`hdc-res`}>{resTxt}</span>}
+                  {resTxt&&<span className="hdc-res">{resTxt}</span>}
                   {st&&<span className="hdc-status">{st}</span>}
-                  {!pScores.some(v=>v!=null)&&<span style={{color:"#444"}}>–</span>}
                 </div>
               </div>
             );
@@ -1299,6 +1330,7 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
         </div>
       )}
 
+      {/* ── SCORECARD ── */}
       {dtab==="card"&&(
         <div className="sc-wrap">
           <table className="scorecard">
@@ -1320,26 +1352,55 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
               </tr>
             </thead>
             <tbody>
-              {ids.map((id,pi)=>{
-                const p=byId(id);
-                const gross=Array.from({length:18},(_,hi)=>scores[roundId][matchIdx][hi][pi]);
-                const tot=gross.reduce((a,v)=>a+(v??0),0);
-                return (
-                  <tr key={id}>
-                    <td className="sc-player-cell"><span className="sc-dot" style={{background:p.color}}/>{p.name}</td>
-                    {gross.map((g,i)=>(
-                      <td key={i} className={`sc-score ${ss[pi].has(i)?"stroke-hole":""}`}>
-                        {g??<span className="sc-empty">·</span>}
-                        {ss[pi].has(i)&&<sup className="stroke-sup">•</sup>}
+              {isTeamScore ? (
+                // Two rows: one per team
+                [{name:"🇺🇸 "+teamAName, pi:0, hcp:teamAHcp, strokeSet:ss[0], color:"#B22234"},
+                 {name:"🇪🇺 "+teamBName, pi:2, hcp:teamBHcp, strokeSet:ss[2], color:"#FFCD00"}
+                ].map(({name,pi,hcp,strokeSet,color})=>{
+                  const gross=Array.from({length:18},(_,hi)=>scores[roundId][matchIdx][hi][pi]);
+                  const tot=gross.reduce((a,v)=>a+(v??0),0);
+                  return (
+                    <tr key={pi}>
+                      <td className="sc-player-cell">
+                        <span className="sc-dot" style={{background:color}}/>
+                        <span style={{fontSize:11}}>{name}</span>
+                        <span style={{fontSize:9,color:"var(--muted)",marginLeft:4}}>HCP {hcp}</span>
                       </td>
-                    ))}
-                    <td className="sc-total">{tot||"–"}</td>
-                  </tr>
-                );
-              })}
+                      {gross.map((g,i)=>(
+                        <td key={i} className={`sc-score ${strokeSet.has(i)?"stroke-hole":""}`}>
+                          {g??<span className="sc-empty">·</span>}
+                          {strokeSet.has(i)&&<sup className="stroke-sup">•</sup>}
+                        </td>
+                      ))}
+                      <td className="sc-total">{tot||"–"}</td>
+                    </tr>
+                  );
+                })
+              ) : (
+                // Individual rows
+                ids.map((id,pi)=>{
+                  const p=byId(id);
+                  const gross=Array.from({length:18},(_,hi)=>scores[roundId][matchIdx][hi][pi]);
+                  const tot=gross.reduce((a,v)=>a+(v??0),0);
+                  return (
+                    <tr key={id}>
+                      <td className="sc-player-cell">
+                        <span className="sc-dot" style={{background:p.color}}/>{p.name}
+                      </td>
+                      {gross.map((g,i)=>(
+                        <td key={i} className={`sc-score ${ss[pi].has(i)?"stroke-hole":""}`}>
+                          {g??<span className="sc-empty">·</span>}
+                          {ss[pi].has(i)&&<sup className="stroke-sup">•</sup>}
+                        </td>
+                      ))}
+                      <td className="sc-total">{tot||"–"}</td>
+                    </tr>
+                  );
+                })
+              )}
               <tr className="result-row">
                 <td>Result</td>
-                {results.map((r2,i)=>(
+                {holeResults.map((r2,i)=>(
                   <td key={i} className={`hole-res ${r2==="A"?"res-a":r2==="B"?"res-b":r2==="H"?"res-h":""}`}>
                     {r2??<span className="sc-empty">·</span>}
                   </td>
@@ -1348,7 +1409,7 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
               </tr>
             </tbody>
           </table>
-          <p className="sc-note">• = stroke hole</p>
+          <p className="sc-note">• = stroke hole{isTeamScore?" (team handicap)":""}</p>
         </div>
       )}
     </div>
