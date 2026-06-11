@@ -710,7 +710,7 @@ function teamHandicap(ids, format) {
   if(!hcps.length) return 0;
   if(hcps.length===1) return hcps[0];
   const [lo,hi]=hcps;
-  if(format==="2-Man Scramble") return Math.round(lo*0.35+hi*0.65);
+  if(format==="2-Man Scramble") return Math.round(lo*0.35+hi*0.15);
   if(format==="Greensomes")     return Math.round(lo*0.6+hi*0.4);
   return lo;
 }
