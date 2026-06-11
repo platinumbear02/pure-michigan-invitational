@@ -1190,11 +1190,15 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
 
       {dtab==="entry"&&(
         <div className="entry-section">
-          <p className="entry-hint">Tap a hole to enter gross scores for all players</p>
+          <p className="entry-hint">
+            {r.teamScore ? "Tap a hole to enter one team score per side" : "Tap a hole to enter gross scores for all players"}
+          </p>
           {course.par.map((_,i)=>{
-            const pScores=ids.map((_,pi)=>scores[roundId][matchIdx][i][pi]);
-            const done=pScores.every(v=>v!=null);
-            const open=openHole===i;
+            // For team rounds only check slots 0 and 2; for individual check all
+            const relevantSlots = r.teamScore ? [0,2] : ids.map((_,pi)=>pi);
+            const pScores = relevantSlots.map(pi=>scores[roundId][matchIdx][i][pi]);
+            const done = pScores.every(v=>v!=null);
+            const open = openHole===i;
             return (
               <div key={i} className={`entry-hole ${open?"entry-open":""} ${done?"entry-done":""}`}>
                 <div className="eh-header" onClick={()=>setOpenHole(open?null:i)}>
@@ -1205,21 +1209,48 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
                 </div>
                 {open&&(
                   <div className="eh-body">
-                    {ids.map((id,pi)=>{
-                      const p=byId(id);const g=pScores[pi];const hasStroke=ss[pi].has(i);
-                      return (
-                        <div key={id} className="eh-player">
-                          <span className="eh-dot" style={{background:p.color}}/>
-                          <span className="eh-pname">{p.name}{hasStroke&&<span className="eh-stroke-badge">+1 stroke</span>}</span>
-                          <div className="eh-controls">
-                            <button className="eh-btn" onClick={()=>setScore(i,pi,Math.max(1,(g??course.par[i])-1))}>−</button>
-                            <span className={`eh-val ${g!=null?"eh-scored":""}`}>{g??"–"}</span>
-                            <button className="eh-btn" onClick={()=>setScore(i,pi,(g??course.par[i])+1)}>+</button>
-                            {g!=null&&<button className="eh-clear" onClick={()=>setScore(i,pi,null)}>×</button>}
+                    {r.teamScore ? (
+                      // Team score entry — 1 score per team
+                      [{pi:0, teamIds:match.teamA, flag:"🇺🇸", cls:"usa-label"},
+                       {pi:2, teamIds:match.teamB, flag:"🇪🇺", cls:"eur-label"}
+                      ].map(({pi,teamIds,flag,cls})=>{
+                        const g=scores[roundId][matchIdx][i][pi];
+                        const tHcp=teamHandicap(teamIds.filter(Boolean),r.format);
+                        const hasStroke=ss[pi].has(i);
+                        const names=teamIds.filter(Boolean).map(id=>byId(id)?.name).join(" + ");
+                        return (
+                          <div key={pi} className="eh-player">
+                            <span className={`eh-pname ${cls}`}>{flag} {names}
+                              {hasStroke&&<span className="eh-stroke-badge">+1</span>}
+                              <span style={{color:"var(--muted)",fontSize:10,marginLeft:4}}>HCP {tHcp}</span>
+                            </span>
+                            <div className="eh-controls">
+                              <button className="eh-btn" onClick={()=>setScore(i,pi,Math.max(1,(g??course.par[i])-1))}>−</button>
+                              <span className={`eh-val ${g!=null?"eh-scored":""}`}>{g??"–"}</span>
+                              <button className="eh-btn" onClick={()=>setScore(i,pi,(g??course.par[i])+1)}>+</button>
+                              {g!=null&&<button className="eh-clear" onClick={()=>setScore(i,pi,null)}>×</button>}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    ) : (
+                      // Individual score entry
+                      ids.map((id,pi)=>{
+                        const p=byId(id);const g=pScores[pi];const hasStroke=ss[pi].has(i);
+                        return (
+                          <div key={id} className="eh-player">
+                            <span className="eh-dot" style={{background:p.color}}/>
+                            <span className="eh-pname">{p.name}{hasStroke&&<span className="eh-stroke-badge">+1 stroke</span>}</span>
+                            <div className="eh-controls">
+                              <button className="eh-btn" onClick={()=>setScore(i,pi,Math.max(1,(g??course.par[i])-1))}>−</button>
+                              <span className={`eh-val ${g!=null?"eh-scored":""}`}>{g??"–"}</span>
+                              <button className="eh-btn" onClick={()=>setScore(i,pi,(g??course.par[i])+1)}>+</button>
+                              {g!=null&&<button className="eh-clear" onClick={()=>setScore(i,pi,null)}>×</button>}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 )}
               </div>
@@ -1619,7 +1650,7 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
     });
   }
 
-  // Match selector view
+  // ── Match selector ────────────────────────────────────────────────────────
   if (matchIdx === null) {
     return (
       <div>
@@ -1634,43 +1665,48 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
         </div>
         <div className="scoring-header-bar">
           <div className="shb-title">{r.format}</div>
-          <div className="shb-meta">{r.time} · {r.course}</div>
+          <div className="shb-meta">{r.time} · {r.course}
+            {r.teamScore&&<span style={{marginLeft:6,fontSize:10,color:"var(--gold)"}}>· Team score entry</span>}
+          </div>
         </div>
         <div className="match-list">
           {pairings[round].map((match, mi) => {
-            const ids = r.singles ? [match.teamA[0],match.teamB[0]] : [...match.teamA,...match.teamB];
+            const ids = r.singles?[match.teamA[0],match.teamB[0]]:[...match.teamA,...match.teamB];
             const valid = ids.every(Boolean);
-            const scored = valid && scores[round][mi].some(h => h.some(v => v !== null));
-            const done = valid && scores[round][mi].every(h => h.every(v => v !== null));
+            const checkSlots = r.teamScore?[0,2]:ids.map((_,pi)=>pi);
+            const scored = valid && checkSlots.some(pi=>scores[round][mi].some(h=>h[pi]!==null));
+            const done   = valid && checkSlots.every(pi=>scores[round][mi].every(h=>h[pi]!==null));
             return (
-              <div key={mi} className={`match-card ${!valid?"mc-disabled":""}`}
-                onClick={()=>valid&&(setMatchIdx(mi),setHoleIdx(0))}>
+              <div key={mi} className={`match-card ${!valid?"mc-disabled":""}`}>
                 <div className="mc-num">Match {mi+1}</div>
                 <div className="mc-body">
                   <div className="mc-team">
-                    <span className="mc-team-label usa-label">🇺🇸</span>
+                    <span className="mc-team-label usa-label">🇺🇸 USA</span>
                     <div className="mc-players">
-                      {(r.singles?[match.teamA[0]]:[...match.teamA]).filter(Boolean).map(id=>{
-                        const p=byId(id);
-                        return <span key={id} className="mc-player"><span className="mc-dot" style={{background:p.color}}/>{p.name}</span>;
-                      })}
-                      {!valid&&<span className="mc-tbd">TBD</span>}
+                      {match.teamA.filter(Boolean).map(id=>{const p=byId(id);return(
+                        <span key={id} className="mc-player"><span className="mc-dot" style={{background:p.color}}/>{p.name}</span>
+                      );})}
+                      {!match.teamA.some(Boolean)&&<span className="mc-tbd">TBD</span>}
                     </div>
                   </div>
                   <div className="mc-status" style={{color:done?"#2ecc71":scored?"#f0c040":"#666"}}>
                     {done?"✓ Done":scored?"In Progress":"Not Started"}
                   </div>
                   <div className="mc-team mc-team-r">
-                    <span className="mc-team-label eur-label">🇪🇺</span>
+                    <span className="mc-team-label eur-label">🇪🇺 EUR</span>
                     <div className="mc-players mc-players-r">
-                      {(r.singles?[match.teamB[0]]:[...match.teamB]).filter(Boolean).map(id=>{
-                        const p=byId(id);
-                        return <span key={id} className="mc-player"><span className="mc-dot" style={{background:p.color}}/>{p.name}</span>;
-                      })}
+                      {match.teamB.filter(Boolean).map(id=>{const p=byId(id);return(
+                        <span key={id} className="mc-player"><span className="mc-dot" style={{background:p.color}}/>{p.name}</span>
+                      );})}
+                      {!match.teamB.some(Boolean)&&<span className="mc-tbd">TBD</span>}
                     </div>
                   </div>
                 </div>
-                {valid&&<button className="mc-score-btn">Enter Scores →</button>}
+                {valid&&(
+                  <button className="mc-score-btn" onClick={()=>{setMatchIdx(mi);setHoleIdx(0);}}>
+                    Enter Scores →
+                  </button>
+                )}
               </div>
             );
           })}
@@ -1679,24 +1715,22 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
     );
   }
 
-  // Hole-by-hole scoring view
-  const match = pairings[round][matchIdx];
-  const ids = r.singles ? [match.teamA[0],match.teamB[0]] : [...match.teamA,...match.teamB];
-  const ss = r.teamScore ? calcTeamStrokes(match.teamA,match.teamB,r.course,r.format) : calcStrokes(ids, r.course);
-  const holeScores = ids.map((_, pi) => scores[round][matchIdx][holeIdx][pi]);
-  const nets = ids.map((id, pi) => {
-    const g = holeScores[pi];
-    return g != null ? g - (ss[pi].has(holeIdx) ? 1 : 0) : null;
+  // ── Hole-by-hole scoring view ─────────────────────────────────────────────
+  // Only reached when matchIdx is set (not null)
+  const match   = pairings[round][matchIdx];
+  const ids     = r.singles?[match.teamA[0],match.teamB[0]]:[...match.teamA,...match.teamB];
+  const ss      = r.teamScore?calcTeamStrokes(match.teamA,match.teamB,r.course,r.format):calcStrokes(ids,r.course);
+  const holeScores = ids.map((_,pi)=>scores[round][matchIdx][holeIdx][pi]);
+  const nets    = ids.map((id,pi)=>{
+    const g=holeScores[pi];
+    return g!=null?g-(ss[pi].has(holeIdx)?1:0):null;
   });
-
-  // Running match status
-  const allHoleScores = Array.from({length:18}, (_, hi) => ids.map((_, pi) => scores[round][matchIdx][hi][pi]));
-  const {holeStatus, holeResults} = scoreMatch(allHoleScores, ss, r.course, r.singles, r.teamScore||false);
-  const currentStatus = holeStatus.filter(Boolean).at(-1) ?? "AS";
-  const statusColor = currentStatus.startsWith("USA")?"#B22234":currentStatus.startsWith("EUR")?"#FFCD00":"var(--cream)";
-
-  const teamUSA = r.singles ? [match.teamA[0]] : match.teamA;
-  const teamEUR = r.singles ? [match.teamB[0]] : match.teamB;
+  const allHoleScores = Array.from({length:18},(_,hi)=>ids.map((_,pi)=>scores[round][matchIdx][hi][pi]));
+  const {holeStatus,holeResults} = scoreMatch(allHoleScores,ss,r.course,r.singles,r.teamScore||false);
+  const currentStatus = holeStatus.filter(Boolean).at(-1)??"AS";
+  const statusColor   = currentStatus.startsWith("USA")?"#B22234":currentStatus.startsWith("EUR")?"#FFCD00":"var(--cream)";
+  const teamUSA = r.singles?[match.teamA[0]]:match.teamA;
+  const teamEUR = r.singles?[match.teamB[0]]:match.teamB;
 
   return (
     <div>
@@ -1715,16 +1749,13 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
             <span className="hsh-flag">🇪🇺</span>
           </div>
         </div>
-        {/* Hole mini-map */}
         <div className="hole-mini-map">
           {Array.from({length:18},(_,i)=>{
-            const res = holeResults[i];
-            const active = i === holeIdx;
+            const res=holeResults[i];
             return (
               <button key={i}
-                className={`hmm-hole ${active?"hmm-active":""} ${res==="A"?"hmm-usa":res==="B"?"hmm-eur":res==="H"?"hmm-half":""}`}
-                onClick={()=>setHoleIdx(i)}>
-                {i+1}
+                className={`hmm-hole ${i===holeIdx?"hmm-active":""} ${res==="A"?"hmm-usa":res==="B"?"hmm-eur":res==="H"?"hmm-half":""}`}
+                onClick={()=>setHoleIdx(i)}>{i+1}
               </button>
             );
           })}
@@ -1743,15 +1774,14 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
 
         <div className="hec-divider usa-divider"/>
         {r.teamScore ? (
-          // Team score entry: 1 score per team (stored at pi=0 for USA, pi=2 for EUR)
-          [{label:"🇺🇸 "+teamUSA.filter(Boolean).map(id=>byId(id).name).join(" + "), pi:0, team:"usa"},
-           {label:"🇪🇺 "+teamEUR.filter(Boolean).map(id=>byId(id).name).join(" + "), pi:2, team:"eur"}
+          [{label:"🇺🇸 "+teamUSA.filter(Boolean).map(id=>byId(id).name).join(" + "),pi:0,team:"usa"},
+           {label:"🇪🇺 "+teamEUR.filter(Boolean).map(id=>byId(id).name).join(" + "),pi:2,team:"eur"}
           ].map(({label,pi,team})=>{
-            const g = scores[round][matchIdx][holeIdx][pi];
-            const tIds = pi===0?teamUSA:teamEUR;
-            const tHcp = teamHandicap(tIds.filter(Boolean), r.format);
-            const tStroke = ss[pi].has(holeIdx);
-            const netScore = g!=null ? g-(tStroke?1:0) : null;
+            const g=scores[round][matchIdx][holeIdx][pi];
+            const tIds=pi===0?teamUSA:teamEUR;
+            const tHcp=teamHandicap(tIds.filter(Boolean),r.format);
+            const tStroke=ss[pi].has(holeIdx);
+            const netScore=g!=null?g-(tStroke?1:0):null;
             return (
               <div key={pi} className="hec-player-row">
                 <div className="hpr-info">
@@ -1770,11 +1800,11 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
             );
           })
         ) : (
-          ids.map((id, pi) => {
-            const p = byId(id);
-            const g = holeScores[pi];
-            const net = nets[pi];
-            if (pi === (r.singles?1:2)) return <div key="div" className="hec-divider eur-divider"/>;
+          ids.map((id,pi)=>{
+            const p=byId(id);
+            const g=holeScores[pi];
+            const net=nets[pi];
+            if(pi===(r.singles?1:2)) return <div key="div" className="hec-divider eur-divider"/>;
             return (
               <div key={id} className="hec-player-row">
                 <div className="hpr-info">
@@ -1805,8 +1835,6 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
     </div>
   );
 }
-
-
 
 function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, rPlayers}) {
   const [view, setView] = useState("standings");
