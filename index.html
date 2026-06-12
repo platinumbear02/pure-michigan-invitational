@@ -276,6 +276,151 @@ button{font-family:inherit;cursor:pointer;}
 .rr-name{flex:1;font-size:12px;font-weight:600;color:var(--cream);}
 .rr-val{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:800;}
 .rr-sub{font-size:10px;color:var(--muted);}
+
+/* ===== Restored: Scoring, Results, Money, Skins, Greenies, Awards ===== */
+/* Scoring page */
+.scoring-header-bar{margin-bottom:12px;padding:0 2px;}
+.shb-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;}
+.shb-meta{font-size:11px;color:var(--muted);}
+.mc-disabled{opacity:.45;pointer-events:none;}
+.hole-score-header{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;}
+.hsh-teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;margin-bottom:10px;}
+.hsh-team{display:flex;flex-direction:column;gap:2px;}
+.hsh-team-r{align-items:flex-end;}
+.hsh-flag{font-size:14px;}
+.hsh-name{font-size:12px;font-weight:700;}
+.hsh-status{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;text-align:center;letter-spacing:.04em;}
+.hole-mini-map{display:flex;flex-wrap:wrap;gap:3px;}
+.hmm-hole{width:26px;height:22px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--muted);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.hmm-active{border-color:var(--gold)!important;color:var(--gold2)!important;background:rgba(201,162,39,.12)!important;}
+.hmm-usa{background:rgba(178,34,52,.2)!important;color:#e05060!important;border-color:rgba(178,34,52,.4)!important;}
+.hmm-eur{background:rgba(255,205,0,.15)!important;color:#FFCD00!important;border-color:rgba(255,205,0,.4)!important;}
+.hmm-half{background:rgba(255,255,255,.06)!important;color:var(--muted)!important;}
+.hole-entry-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px;}
+.hec-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.hec-num{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:var(--gold2);line-height:1;}
+.hec-info{font-size:11px;color:var(--muted);flex:1;}
+.hec-res{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;padding:3px 8px;border-radius:5px;}
+.hec-divider{height:1px;background:var(--border);margin:8px 0;}
+.usa-divider{background:rgba(178,34,52,.3);}
+.eur-divider{background:rgba(255,205,0,.3);}
+.hec-player-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+.hec-player-row:last-child{border-bottom:none;}
+.hpr-info{display:flex;align-items:center;gap:6px;min-width:0;flex:1;}
+.hpr-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.hpr-name{font-size:13px;font-weight:700;color:var(--cream);}
+.hpr-team-label{font-size:12px;font-weight:700;flex:1;}
+.hpr-hcp{font-size:10px;color:var(--muted);}
+.hpr-stroke{font-size:9px;background:rgba(201,162,39,.2);color:var(--gold);padding:1px 4px;border-radius:3px;font-weight:700;}
+.hpr-net{font-size:10px;color:var(--under);font-family:'DM Mono',monospace;}
+.hpr-controls{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.hpr-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:rgba(255,255,255,.08);color:var(--cream);font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.hpr-score{font-family:'DM Mono',monospace;font-size:20px;font-weight:700;width:30px;text-align:center;color:var(--muted);}
+.hpr-scored{color:var(--cream);}
+.hpr-clear{width:22px;height:22px;border-radius:50%;border:1px solid rgba(231,76,60,.3);background:rgba(231,76,60,.08);color:#e55;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.hole-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px;}
+.hn-btn{flex:1;padding:11px;border-radius:9px;border:1.5px solid var(--border);background:var(--s2);color:var(--cream);font-size:14px;font-weight:700;}
+.hn-btn:disabled{opacity:.3;}
+.hn-progress{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);}
+/* Results sub-tabs */
+.res-tabs{display:flex;gap:5px;margin-bottom:12px;overflow-x:auto;}
+.res-tab{flex-shrink:0;padding:7px 11px;border-radius:8px;border:1.5px solid var(--border);background:var(--s2);color:var(--muted);font-size:11px;font-weight:700;white-space:nowrap;transition:all .2s;}
+.res-tab-on{border-color:var(--gold);color:var(--gold2);background:rgba(201,162,39,.08);}
+.sort-bar{display:flex;align-items:center;gap:5px;margin-bottom:10px;flex-wrap:wrap;}
+.sort-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-right:2px;}
+.sort-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--s2);color:var(--muted);font-size:11px;font-weight:600;}
+.sort-on{border-color:var(--gold);color:var(--gold2);background:rgba(201,162,39,.08);}
+/* Results table */
+.rt-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid rgba(255,255,255,.12);margin-bottom:8px;}
+.rt{border-collapse:collapse;width:100%;min-width:540px;font-size:12px;background:var(--surface);}
+.rt th,.rt td{border-right:1px solid rgba(255,255,255,.05);}
+.rt-sticky{position:sticky;left:0;background:var(--surface);z-index:4;border-right:1px solid rgba(255,255,255,.14)!important;}
+.rt-th{padding:8px 7px;text-align:center;background:linear-gradient(180deg,rgba(201,162,39,.14),rgba(201,162,39,.06));color:var(--gold2);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;border-bottom:2px solid rgba(201,162,39,.25);}
+.rt-th-player{text-align:left;padding-left:10px;min-width:120px;}
+.rt-team-col{background:rgba(255,255,255,.025);}
+.rt-sep{border-left:2px solid rgba(201,162,39,.2)!important;}
+.rt-row{border-bottom:1px solid rgba(255,255,255,.06);}
+.rt-row:nth-child(even){background:rgba(255,255,255,.015);}
+.rt-row:nth-child(even) .rt-sticky{background:#142f1e;}
+.rt-row:last-child{border-bottom:none;}
+.rt-row-top{background:rgba(201,162,39,.07)!important;}
+.rt-row-top .rt-sticky{background:#1a3320!important;}
+.rt-td{padding:9px 7px;text-align:center;font-family:'DM Mono',monospace;white-space:nowrap;}
+.rt-td-player{text-align:left;padding:9px 10px;display:flex;align-items:center;gap:7px;}
+.rt-flag{font-size:15px;flex-shrink:0;}
+.rt-pname{font-size:13px;font-weight:700;color:var(--cream);font-family:'Barlow',sans-serif;}
+.rt-record{font-size:12px;font-weight:700;}
+.rt-pts{font-size:14px;font-weight:800;color:var(--gold2);}
+.rt-dim{color:var(--muted)!important;font-size:11px;}
+.rt-score{color:var(--cream);font-size:13px;}
+.rt-total{color:var(--gold2);font-weight:700;font-size:13px;}
+.rt-net{color:#2ecc71;font-weight:700;font-size:13px;}
+.rt-topar{display:block;font-size:9px;font-weight:600;margin-top:1px;}
+.rt-money-cell{color:#7CFC9B;font-size:12px;font-weight:600;}
+.rt-note{font-size:10px;color:var(--muted);margin-bottom:14px;padding:0 2px;line-height:1.5;}
+/* Award cards */
+.award-section{display:grid;grid-template-columns:1fr;gap:10px;margin-top:2px;}
+.award-card{background:linear-gradient(160deg,var(--surface),rgba(18,46,29,.6));border:1px solid var(--border);border-radius:14px;padding:0;overflow:hidden;}
+.mvg-card{border-top:3px solid #f0c040;}
+.rat-card{border-top:3px solid #e55;}
+.award-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);}
+.award-emoji{font-size:24px;}
+.award-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;letter-spacing:.02em;line-height:1;}
+.award-sub{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:2px;}
+.award-row{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;}
+.award-row:last-child{border-bottom:none;}
+.award-row-lead{background:rgba(240,192,64,.08);}
+.award-row-lead-rat{background:rgba(229,85,85,.07);}
+.award-pos{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:var(--muted);width:16px;flex-shrink:0;}
+.award-row-lead .award-pos{color:#f0c040;}
+.award-row-lead-rat .award-pos{color:#e55;}
+.award-flag{font-size:16px;flex-shrink:0;}
+.award-name{flex:1;font-weight:700;color:var(--cream);}
+.award-rec{font-family:'DM Mono',monospace;font-size:12px;font-weight:700;}
+.award-pts{font-family:'DM Mono',monospace;font-size:11px;color:var(--gold2);background:rgba(201,162,39,.12);padding:2px 7px;border-radius:10px;}
+.award-skin{font-size:11px;color:var(--gold);}
+.award-gross{font-family:'DM Mono',monospace;font-size:12px;color:#e55;font-weight:700;}
+/* Money sub-tab */
+.money-pot-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;}
+.mpb-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 6px;text-align:center;}
+.mpb-label{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-bottom:3px;}
+.mpb-val{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--gold2);}
+.money-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.money-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;align-items:center;gap:8px;}
+.money-row-top{border-color:rgba(201,162,39,.3);}
+.mr-rank{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);width:22px;flex-shrink:0;}
+.mr-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;flex-shrink:0;}
+.mr-name{font-size:13px;font-weight:700;color:var(--cream);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mr-rounds{display:flex;gap:6px;}
+.mr-round{display:flex;flex-direction:column;align-items:center;}
+.mr-r-label{font-size:8px;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.mr-r-val{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);}
+.mr-total{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:800;flex-shrink:0;min-width:42px;text-align:right;}
+.skin-pot-row{display:flex;gap:10px;flex-wrap:wrap;padding:10px 0;font-size:11px;color:var(--muted);}
+/* Skins sub-tab */
+.skin-rnd-val{font-family:'DM Mono',monospace;font-size:10px;color:var(--gold);font-weight:400;margin-left:6px;}
+.skin-hole-row{display:grid;grid-template-columns:28px 42px 1fr 1fr;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--border);font-size:11px;}
+.skin-hole-row:last-child{border-bottom:none;}
+.shr-hole{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--gold);}
+.shr-par{font-size:10px;color:var(--muted);}
+.shr-gross,.shr-net{display:flex;align-items:center;gap:4px;font-weight:600;color:var(--cream);flex-wrap:wrap;}
+.shr-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.shr-val{font-family:'DM Mono',monospace;font-size:10px;color:var(--gold2);margin-left:2px;}
+.shr-tied{color:var(--muted);font-style:italic;font-size:10px;}
+.no-data{font-size:12px;color:var(--muted);padding:8px 0;text-align:center;}
+/* Greenies */
+.greenie-slot{padding:10px 0;border-bottom:1px solid var(--border);}
+.greenie-slot:last-child{border-bottom:none;}
+.gs-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:6px;}
+.gs-edit{display:flex;flex-direction:column;gap:7px;}
+.gs-select{background:rgba(0,0,0,.3);border:1.5px solid var(--border);border-radius:7px;color:var(--cream);font-size:12px;padding:7px 10px;outline:none;width:100%;font-family:'Barlow',sans-serif;}
+.gs-display{display:flex;align-items:center;gap:10px;}
+.gs-hole{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--gold);}
+.gs-winner{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:var(--cream);}
+.gs-dot{width:8px;height:8px;border-radius:50%;}
+.gs-prize{background:rgba(201,162,39,.2);color:var(--gold2);font-size:11px;padding:1px 6px;border-radius:10px;margin-left:4px;}
+.gs-tbd{font-size:12px;color:var(--muted);font-style:italic;}
+
 </style>
 </head>
 <body>
@@ -442,21 +587,52 @@ function getPlayerScores(scores, pairings, roundId) {
 // Returns array of {holeIdx, winnerId, score} or null per hole
 function calcSkinsForRound(scores, pairings, roundId, type) {
   const r = ROUNDS.find(x => x.id === roundId);
-  const playerScores = getPlayerScores(scores, pairings, roundId);
-  const playerIds = Object.keys(playerScores);
+  // Build competing "entries" — for team rounds each TEAM is one entry (with both player ids)
+  // For individual rounds each PLAYER is one entry
+  const entries = [];
+  pairings[roundId].forEach((match, mi) => {
+    if (r.teamScore) {
+      const aIds = match.teamA.filter(Boolean);
+      const bIds = match.teamB.filter(Boolean);
+      if (aIds.length) {
+        const teamHcp = teamHandicap(aIds, r.format);
+        entries.push({winnerIds:aIds, hcp:teamHcp, scores:Array.from({length:18},(_,hi)=>scores[roundId][mi][hi][0])});
+      }
+      if (bIds.length) {
+        const teamHcp = teamHandicap(bIds, r.format);
+        entries.push({winnerIds:bIds, hcp:teamHcp, scores:Array.from({length:18},(_,hi)=>scores[roundId][mi][hi][2])});
+      }
+    } else {
+      const ids = r.singles?[match.teamA[0],match.teamB[0]]:[...match.teamA,...match.teamB];
+      ids.forEach((id,pi)=>{
+        if(!id) return;
+        entries.push({winnerIds:[id], hcp:byId(id)?.hcp??0, scores:Array.from({length:18},(_,hi)=>scores[roundId][mi][hi][pi])});
+      });
+    }
+  });
+
   const skins = [];
   for (let hi = 0; hi < 18; hi++) {
-    const holeScores = playerIds
-      .map(id => {
-        const g = playerScores[id][hi];
-        const s = type === 'net' ? fieldNetScore(g, id, hi, r.course) : g;
-        return {id, s};
-      })
-      .filter(x => x.s !== null);
-    if (holeScores.length < playerIds.length) { skins.push(null); continue; } // not all scored
+    const holeScores = entries.map(e => {
+      const g = e.scores[hi];
+      if (g === null) return {entry:e, s:null};
+      // net: subtract strokes based on entry handicap distributed by course index
+      let s = g;
+      if (type === 'net') {
+        const hcp = e.hcp;
+        const rank = COURSES[r.course].hcp[hi];
+        const base = Math.floor(hcp/18);
+        const extra = hcp % 18;
+        s = g - (base + (rank <= extra ? 1 : 0));
+      }
+      return {entry:e, s};
+    }).filter(x => x.s !== null);
+
+    if (holeScores.length < entries.length) { skins.push(null); continue; } // not all scored
     const min = Math.min(...holeScores.map(x => x.s));
     const winners = holeScores.filter(x => x.s === min);
-    skins.push(winners.length === 1 ? {holeIdx:hi, winnerId:winners[0].id, score:min} : null);
+    // One unique winning entry = skin. winnerIds may be 1 (individual) or 2 (team)
+    skins.push(winners.length === 1 ? {holeIdx:hi, winnerIds:winners[0].entry.winnerIds, score:min} : null);
   }
   return skins;
 }
@@ -477,8 +653,11 @@ function calcAllSkins(scores, pairings, type) {
   const byPlayer = {};
   const earningsByPlayer = {};
   allSkins.forEach(s => {
-    byPlayer[s.winnerId] = (byPlayer[s.winnerId]||0) + 1;
-    earningsByPlayer[s.winnerId] = (earningsByPlayer[s.winnerId]||0) + s.skinValue;
+    const n = s.winnerIds.length;
+    s.winnerIds.forEach(id => {
+      byPlayer[id] = (byPlayer[id]||0) + 1;               // count: each teammate credited a skin
+      earningsByPlayer[id] = (earningsByPlayer[id]||0) + s.skinValue/n; // money split evenly
+    });
   });
   // For display: total skins won and total pot
   const totalSkins = allSkins.length;
@@ -533,21 +712,25 @@ function playerRoundMoney(playerId, roundId, scores, pairings, greenieData) {
     if (winTeam.filter(Boolean).includes(playerId)) matchBonus += 20;
   });
 
-  // Gross skins this round
+  // Gross skins this round (winnerIds may include 2 teammates — money splits)
   const grossRound = calcSkinsForRound(scores, pairings, roundId, 'gross');
-  const grossWon = grossRound.filter(s => s && s.winnerId === playerId).length;
   const grossSkinsWonInRound = grossRound.filter(Boolean).length;
   const grossSkinVal = grossSkinsWonInRound > 0 ? 125 / grossSkinsWonInRound : 0;
-  const grossSkins = grossWon; // count
-  const grossSkinEarnings = grossWon * grossSkinVal;
+  const grossSkins = grossRound.filter(s => s && s.winnerIds.includes(playerId)).length;
+  const grossSkinEarnings = grossRound.reduce((sum,s)=>{
+    if(s && s.winnerIds.includes(playerId)) return sum + grossSkinVal/s.winnerIds.length;
+    return sum;
+  },0);
 
   // Net skins this round
   const netRound = calcSkinsForRound(scores, pairings, roundId, 'net');
-  const netWon = netRound.filter(s => s && s.winnerId === playerId).length;
   const netSkinsWonInRound = netRound.filter(Boolean).length;
   const netSkinVal = netSkinsWonInRound > 0 ? 125 / netSkinsWonInRound : 0;
-  const netSkins = netWon; // count
-  const netSkinEarnings = netWon * netSkinVal;
+  const netSkins = netRound.filter(s => s && s.winnerIds.includes(playerId)).length;
+  const netSkinEarnings = netRound.reduce((sum,s)=>{
+    if(s && s.winnerIds.includes(playerId)) return sum + netSkinVal/s.winnerIds.length;
+    return sum;
+  },0);
 
   // Greenies this round
   const gd = greenieData[roundId];
@@ -633,10 +816,30 @@ function generateTestData() {
   ROUNDS.forEach(r => {
     const course = roundCourses[r.id];
     scores[r.id] = pairings[r.id].map(match => {
-      const ids = r.singles ? [match.teamA[0], match.teamB[0]] : [...match.teamA, ...match.teamB];
-      const playerRounds = ids.map(id => genRound(id, course));
-      // Restructure to [holeIdx][playerIdx]
-      return Array.from({length:18}, (_,hi) => ids.map((_,pi) => playerRounds[pi][hi]));
+      if (r.teamScore) {
+        // Team rounds: generate ONE team score per side (slot 0 = USA, slot 2 = EUR)
+        // Team plays better than an individual — use the lower handicap player's level minus a bit
+        const aIds = match.teamA.filter(Boolean);
+        const bIds = match.teamB.filter(Boolean);
+        const aHcp = teamHandicap(aIds, r.format);
+        const bHcp = teamHandicap(bIds, r.format);
+        const genTeam = (hcp) => {
+          const cpar = COURSES[course].par;
+          return cpar.map(par => {
+            const base = par + Math.round((hcp*0.7)/18);
+            const v = Math.floor(Math.random()*3)-1;
+            return Math.max(par-1, base+v);
+          });
+        };
+        const aScore = genTeam(aHcp);
+        const bScore = genTeam(bHcp);
+        // slot 0 = team A, slot 2 = team B, slots 1 & 3 unused (null)
+        return Array.from({length:18}, (_,hi) => [aScore[hi], null, bScore[hi], null]);
+      } else {
+        const ids = r.singles ? [match.teamA[0], match.teamB[0]] : [...match.teamA, ...match.teamB];
+        const playerRounds = ids.map(id => genRound(id, course));
+        return Array.from({length:18}, (_,hi) => ids.map((_,pi) => playerRounds[pi][hi]));
+      }
     });
   });
 
@@ -1169,7 +1372,7 @@ function MatchDetail({roundId,matchIdx,pairings,scores,setScores,onBack}) {
       ? [scores[roundId][matchIdx][hi][0], null, scores[roundId][matchIdx][hi][2], null]
       : ids.map((_,pi)=>scores[roundId][matchIdx][hi][pi])
   );
-  const {holeResults,holeStatus,final} = scoreMatch(hs, ss, r.course, isSingles, isTeamScore);
+  const {results:holeResults,statuses:holeStatus,final} = scoreMatch(hs, ss, r.course, isSingles, isTeamScore);
 
   const [dtab, setDtab] = useState("entry");
   const [openHole, setOpenHole] = useState(null);
@@ -1787,7 +1990,7 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
     return g!=null?g-(ss[pi].has(holeIdx)?1:0):null;
   });
   const allHoleScores = Array.from({length:18},(_,hi)=>ids.map((_,pi)=>scores[round][matchIdx][hi][pi]));
-  const {holeStatus,holeResults} = scoreMatch(allHoleScores,ss,r.course,r.singles,r.teamScore||false);
+  const {statuses:holeStatus,results:holeResults} = scoreMatch(allHoleScores,ss,r.course,r.singles,r.teamScore||false);
   const currentStatus = holeStatus.filter(Boolean).at(-1)??"AS";
   const statusColor   = currentStatus.startsWith("USA")?"#B22234":currentStatus.startsWith("EUR")?"#FFCD00":"var(--cream)";
   const teamUSA = r.singles?[match.teamA[0]]:match.teamA;
@@ -1967,7 +2170,6 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
       {/* ── STANDINGS ── */}
       {view==="standings" && (
         <div>
-          {/* Sort bar */}
           <div className="sort-bar">
             <span className="sort-label">Sort:</span>
             {[["pts","Pts"],["net","Net"],["gross","Gross"],["record","W-L"],["money","$"]].map(([id,lbl])=>(
@@ -1975,33 +2177,20 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
             ))}
           </div>
 
-          {/* Table */}
           <div className="rt-wrap">
             <table className="rt">
               <thead>
                 <tr>
                   <th className="rt-sticky rt-th-player">Player</th>
-                  <th className="rt-th">W-L-T</th>
+                  <th className="rt-th">Rec</th>
                   <th className="rt-th">Pts</th>
-                  <th className="rt-th rt-team-col" title="Team score, not counted in individual total">R1★</th>
+                  <th className="rt-th rt-team-col">R1</th>
                   <th className="rt-th">R2</th>
-                  <th className="rt-th rt-team-col" title="Team score, not counted in individual total">R3★</th>
+                  <th className="rt-th rt-team-col">R3</th>
                   <th className="rt-th">R4</th>
                   <th className="rt-th rt-sep">Gross</th>
                   <th className="rt-th">Net</th>
-                  <th className="rt-th">💰</th>
-                </tr>
-                <tr className="rt-subhead">
-                  <td className="rt-sticky"/>
-                  <td/>
-                  <td/>
-                  <td className="rt-team-col" style={{fontSize:8,color:"var(--muted)"}}>Scramble</td>
-                  <td style={{fontSize:8,color:"var(--muted)"}}>4-Ball</td>
-                  <td className="rt-team-col" style={{fontSize:8,color:"var(--muted)"}}>Alt-Shot</td>
-                  <td style={{fontSize:8,color:"var(--muted)"}}>Singles</td>
-                  <td className="rt-sep"/>
-                  <td/>
-                  <td/>
+                  <th className="rt-th">$</th>
                 </tr>
               </thead>
               <tbody>
@@ -2014,62 +2203,81 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
                   const r4ind  = p.gpr["R4"]??null;
                   const indRounds = [r2ind,r4ind].filter(v=>v!==null);
                   const grossTotal = indRounds.length===2?indRounds.reduce((a,b)=>a+b,0):null;
-                  // Net = gross - (hcp per individual round × rounds played)
                   const netTotal = grossTotal!==null ? grossTotal - (p.hcp*indRounds.length) : null;
+                  // To-par: par of R2(Retreat) + R4(Revenge) = 71+71 = 142
+                  const indPar = (r2ind!==null?71:0)+(r4ind!==null?71:0);
+                  const grossToPar = grossTotal!==null ? grossTotal - 142 : null;
+                  const netToPar = netTotal!==null ? netTotal - 142 : null;
+                  const fmtPar = (v)=> v===null?null : v===0?"E" : v>0?`+${v}`:`${v}`;
                   return (
                     <tr key={p.id} className={`rt-row ${i===0&&played?"rt-row-top":""}`}>
                       <td className="rt-sticky rt-td-player">
-                        <span className="rt-dot" style={{background:p.color}}/>
+                        <span className="rt-flag">{p.team==="USA"?"🇺🇸":"🇪🇺"}</span>
                         <span className="rt-pname">{p.name}</span>
-                        <span className={`rt-team-badge ${p.team==="USA"?"pt-usa":"pt-eur"}`}>{p.team}</span>
                       </td>
-                      <td className="rt-td rt-record" style={{color:recColor}}>
-                        {played?`${p.rec.w}-${p.rec.l}-${p.rec.t}`:"—"}
-                      </td>
+                      <td className="rt-td rt-record" style={{color:recColor}}>{played?`${p.rec.w}-${p.rec.l}-${p.rec.t}`:"—"}</td>
                       <td className="rt-td rt-pts">{p.rec.pts>0?p.rec.pts:"—"}</td>
-                      <td className="rt-td rt-team-col rt-dim">{r1team??<span className="rt-empty">—</span>}</td>
-                      <td className="rt-td rt-score">{r2ind??<span className="rt-empty">—</span>}</td>
-                      <td className="rt-td rt-team-col rt-dim">{r3team??<span className="rt-empty">—</span>}</td>
-                      <td className="rt-td rt-score">{r4ind??<span className="rt-empty">—</span>}</td>
-                      <td className="rt-td rt-sep rt-total">{grossTotal??<span className="rt-empty">—</span>}</td>
-                      <td className="rt-td rt-net">{netTotal??<span className="rt-empty">—</span>}</td>
-                      <td className="rt-td rt-money-cell">{p.money>0?`$${p.money.toFixed(0)}`:<span className="rt-empty">—</span>}</td>
+                      <td className="rt-td rt-team-col rt-dim">{r1team??"—"}</td>
+                      <td className="rt-td rt-score">{r2ind??"—"}</td>
+                      <td className="rt-td rt-team-col rt-dim">{r3team??"—"}</td>
+                      <td className="rt-td rt-score">{r4ind??"—"}</td>
+                      <td className="rt-td rt-sep rt-total">
+                        {grossTotal??"—"}
+                        {grossToPar!==null&&<span className="rt-topar" style={{color:grossToPar<0?"#2ecc71":grossToPar>0?"#e55":"#aaa"}}>{fmtPar(grossToPar)}</span>}
+                      </td>
+                      <td className="rt-td rt-net">
+                        {netTotal??"—"}
+                        {netToPar!==null&&<span className="rt-topar" style={{color:netToPar<0?"#2ecc71":netToPar>0?"#e55":"#aaa"}}>{fmtPar(netToPar)}</span>}
+                      </td>
+                      <td className="rt-td rt-money-cell">{p.money>0?`$${p.money.toFixed(0)}`:"—"}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-          <p className="rt-note">★ R1/R3 are team scores (Scramble/Greensomes) — not counted in individual Gross or Net totals</p>
+          <p className="rt-note">R1 &amp; R3 are team scores (Scramble / Greensomes) — shown for reference, not in Gross/Net totals. Gross &amp; Net are R2 + R4 vs par 142.</p>
 
-          {/* MVG / Ratliff */}
+          {/* Award candidates */}
           {active.length > 0 && (
             <div className="award-section">
               <div className="award-card mvg-card">
-                <div className="award-title">🏅 MVG Candidates</div>
-                <div className="award-sub">Best record · Most pts · Most skins</div>
-                {mvgCandidates.map((p) => (
-                  <div key={p.id} className="award-row">
-                    <span className="award-av" style={{background:p.color,color:p.textColor||"#fff"}}>{p.av}</span>
+                <div className="award-head">
+                  <span className="award-emoji">🏅</span>
+                  <div>
+                    <div className="award-title">MVG Watch</div>
+                    <div className="award-sub">Most Valuable Golfer</div>
+                  </div>
+                </div>
+                {mvgCandidates.map((p,idx) => (
+                  <div key={p.id} className={`award-row ${idx===0?"award-row-lead":""}`}>
+                    <span className="award-pos">{idx+1}</span>
+                    <span className="award-flag">{p.team==="USA"?"🇺🇸":"🇪🇺"}</span>
                     <span className="award-name">{p.name}</span>
-                    <span className="award-stat">{p.rec.w}–{p.rec.l}–{p.rec.t}</span>
-                    <span className="award-stat2">{p.rec.pts}pts</span>
-                    {p.skinsWon>0&&<span className="award-skin">🎯×{p.skinsWon}</span>}
+                    <span className="award-rec" style={{color:p.rec.w>p.rec.l?"#2ecc71":"#aaa"}}>{p.rec.w}-{p.rec.l}-{p.rec.t}</span>
+                    <span className="award-pts">{p.rec.pts}pt</span>
+                    {p.skinsWon>0&&<span className="award-skin">🎯{p.skinsWon}</span>}
                   </div>
                 ))}
               </div>
               <div className="award-card rat-card">
-                <div className="award-title">🥴 Ratliff Candidates</div>
-                <div className="award-sub">Worst record · Highest gross · Most losses</div>
-                {ratliffCandidates.map((p) => {
-                  const r2=p.gpr["R2"]??null; const r4=p.gpr["R4"]??null;
-                  const gt=r2&&r4?r2+r4:null;
+                <div className="award-head">
+                  <span className="award-emoji">🥴</span>
+                  <div>
+                    <div className="award-title">Ratliff Watch</div>
+                    <div className="award-sub">Least Valuable Golfer</div>
+                  </div>
+                </div>
+                {ratliffCandidates.map((p,idx) => {
+                  const r2=p.gpr["R2"]??null,r4=p.gpr["R4"]??null;
+                  const gt=r2!==null&&r4!==null?r2+r4:null;
                   return (
-                    <div key={p.id} className="award-row">
-                      <span className="award-av" style={{background:p.color,color:p.textColor||"#fff"}}>{p.av}</span>
+                    <div key={p.id} className={`award-row ${idx===0?"award-row-lead-rat":""}`}>
+                      <span className="award-pos">{idx+1}</span>
+                      <span className="award-flag">{p.team==="USA"?"🇺🇸":"🇪🇺"}</span>
                       <span className="award-name">{p.name}</span>
-                      <span className="award-stat">{p.rec.w}–{p.rec.l}–{p.rec.t}</span>
-                      {gt&&<span className="award-stat2">Gross {gt}</span>}
+                      <span className="award-rec" style={{color:p.rec.l>p.rec.w?"#e55":"#aaa"}}>{p.rec.w}-{p.rec.l}-{p.rec.t}</span>
+                      {gt&&<span className="award-gross">{gt>142?`+${gt-142}`:gt-142}</span>}
                     </div>
                   );
                 })}
@@ -2125,6 +2333,7 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
             const gVal = gWon>0?(125/gWon).toFixed(2):null;
             const nVal = nWon>0?(125/nWon).toFixed(2):null;
             const hasAny = gRound.some(Boolean)||nRound.some(Boolean);
+            const teamRound = r.teamScore;
             return (
               <div key={r.id} className="card" style={{marginBottom:10}}>
                 <div className="card-title">{r.label} · {r.course} {gVal&&<span className="skin-rnd-val">🟡${gVal} · 🔵${nVal??'TBD'}</span>}</div>
@@ -2132,20 +2341,26 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
                 {gRound.map((s,hi)=>{
                   const ns=nRound[hi];
                   if(!s&&!ns) return null;
+                  const gNames = s?s.winnerIds.map(id=>byId(id)?.name).join(" + "):null;
+                  const nNames = ns?ns.winnerIds.map(id=>byId(id)?.name).join(" + "):null;
+                  const gColor = s?byId(s.winnerIds[0])?.color:null;
+                  const nColor = ns?byId(ns.winnerIds[0])?.color:null;
                   return (
                     <div key={hi} className="skin-hole-row">
                       <span className="shr-hole">H{hi+1}</span>
                       <span className="shr-par">Par {COURSES[r.course].par[hi]}</span>
-                      {s?(()=>{const p=byId(s.winnerId);return(
+                      {s?(
                         <span className="shr-gross">
-                          🟡<span className="shr-dot" style={{background:p.color}}/>{p.name} {s.score} <span className="shr-val">${gVal}</span>
+                          🟡<span className="shr-dot" style={{background:gColor}}/>{gNames} {s.score}
+                          <span className="shr-val">${gVal}{s.winnerIds.length>1?` (split)`:""}</span>
                         </span>
-                      );})():<span className="shr-tied">🟡 tied</span>}
-                      {ns?(()=>{const p=byId(ns.winnerId);return(
+                      ):<span className="shr-tied">🟡 tied</span>}
+                      {ns?(
                         <span className="shr-net">
-                          🔵<span className="shr-dot" style={{background:p.color}}/>{p.name} net {ns.score} <span className="shr-val">${nVal}</span>
+                          🔵<span className="shr-dot" style={{background:nColor}}/>{nNames} net {ns.score}
+                          <span className="shr-val">${nVal}{ns.winnerIds.length>1?` (split)`:""}</span>
                         </span>
-                      );})():<span className="shr-tied">🔵 tied</span>}
+                      ):<span className="shr-tied">🔵 tied</span>}
                     </div>
                   );
                 })}
