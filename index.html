@@ -332,11 +332,11 @@ button{font-family:inherit;cursor:pointer;}
 .sort-on{border-color:var(--gold);color:var(--gold2);background:rgba(201,162,39,.08);}
 /* Results table */
 .rt-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid rgba(255,255,255,.12);margin-bottom:8px;}
-.rt{border-collapse:collapse;width:100%;min-width:540px;font-size:12px;background:var(--surface);}
+.rt{border-collapse:collapse;width:100%;min-width:0;font-size:13px;background:var(--surface);}
 .rt th,.rt td{border-right:1px solid rgba(255,255,255,.05);}
 .rt-sticky{position:sticky;left:0;background:var(--surface);z-index:4;border-right:1px solid rgba(255,255,255,.14)!important;}
 .rt-th{padding:8px 7px;text-align:center;background:linear-gradient(180deg,rgba(201,162,39,.14),rgba(201,162,39,.06));color:var(--gold2);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;border-bottom:2px solid rgba(201,162,39,.25);}
-.rt-th-player{text-align:left;padding-left:10px;min-width:120px;}
+.rt-th-player{text-align:left;padding-left:10px;min-width:78px;width:78px;}
 .rt-team-col{background:rgba(255,255,255,.025);}
 .rt-sep{border-left:2px solid rgba(201,162,39,.2)!important;}
 .rt-row{border-bottom:1px solid rgba(255,255,255,.06);}
@@ -345,18 +345,13 @@ button{font-family:inherit;cursor:pointer;}
 .rt-row:last-child{border-bottom:none;}
 .rt-row-top{background:rgba(201,162,39,.07)!important;}
 .rt-row-top .rt-sticky{background:#1a3320!important;}
-.rt-td{padding:9px 7px;text-align:center;font-family:'DM Mono',monospace;white-space:nowrap;}
-.rt-td-player{text-align:left;padding:9px 10px;display:flex;align-items:center;gap:7px;}
-.rt-flag{font-size:15px;flex-shrink:0;}
-.rt-pname{font-size:13px;font-weight:700;color:var(--cream);font-family:'Barlow',sans-serif;}
-.rt-record{font-size:12px;font-weight:700;}
-.rt-pts{font-size:14px;font-weight:800;color:var(--gold2);}
-.rt-dim{color:var(--muted)!important;font-size:11px;}
-.rt-score{color:var(--cream);font-size:13px;}
-.rt-total{color:var(--gold2);font-weight:700;font-size:13px;}
-.rt-net{color:#2ecc71;font-weight:700;font-size:13px;}
-.rt-topar{display:block;font-size:9px;font-weight:600;margin-top:1px;}
-.rt-money-cell{color:#7CFC9B;font-size:12px;font-weight:600;}
+.rt-td{padding:9px 5px;text-align:center;font-family:'DM Mono',monospace;white-space:nowrap;font-size:13px;}
+.rt-td-player{text-align:left;padding:9px 8px;}
+.rt-pname{font-size:13px;font-weight:700;font-family:'Barlow',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:68px;}
+.rt-record{font-weight:700;}
+.rt-pts{font-weight:800;color:var(--gold2);}
+.rt-money-cell{color:#7CFC9B;font-weight:600;}
+.rt-th{padding:8px 5px;}
 .rt-note{font-size:10px;color:var(--muted);margin-bottom:14px;padding:0 2px;line-height:1.5;}
 /* Award cards */
 .award-section{display:grid;grid-template-columns:1fr;gap:10px;margin-top:2px;}
@@ -379,6 +374,9 @@ button{font-family:inherit;cursor:pointer;}
 .award-rec{font-family:'DM Mono',monospace;font-size:12px;font-weight:700;}
 .award-pts{font-family:'DM Mono',monospace;font-size:11px;color:var(--gold2);background:rgba(201,162,39,.12);padding:2px 7px;border-radius:10px;}
 .award-skin{font-size:11px;color:var(--gold);}
+
+.award-trophy{font-size:12px;margin-left:5px;}
+.award-x{font-size:12px;margin-left:5px;color:#e55;font-weight:800;}
 .award-gross{font-family:'DM Mono',monospace;font-size:12px;color:#e55;font-weight:700;}
 /* Money sub-tab */
 .money-pot-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;}
@@ -2068,9 +2066,11 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
             const p=byId(id);
             const g=holeScores[pi];
             const net=nets[pi];
-            if(pi===(r.singles?1:2)) return <div key="div" className="hec-divider eur-divider"/>;
+            const showDivider = pi===(r.singles?1:2);
             return (
-              <div key={id} className="hec-player-row">
+              <React.Fragment key={id}>
+              {showDivider && <div className="hec-divider eur-divider"/>}
+              <div className="hec-player-row">
                 <div className="hpr-info">
                   <span className="hpr-dot" style={{background:p.color}}/>
                   <span className="hpr-name">{p.name}</span>
@@ -2085,6 +2085,7 @@ function ScoringPage({pairings, scores, setScores, rPlayers}) {
                   {g!=null&&<button className="hpr-clear" onClick={()=>setScore(holeIdx,pi,null)}>×</button>}
                 </div>
               </div>
+              </React.Fragment>
             );
           })
         )}
@@ -2147,8 +2148,12 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
 
   // MVG / Ratliff candidates (players with at least 1 match played)
   const active = rows.filter(p => p.rec.w+p.rec.l+p.rec.t > 0);
-  const mvgCandidates  = [...active].sort((a,b)=>(b.rec.w-b.rec.l)-(a.rec.w-a.rec.l)).slice(0,3);
-  const ratliffCandidates = [...active].sort((a,b)=>(a.rec.w-a.rec.l)-(b.rec.w-b.rec.l)).slice(0,3);
+  const mvgCandidates  = [...active].sort((a,b)=>(b.rec.w-b.rec.l)-(a.rec.w-a.rec.l)).slice(0,5);
+  const ratliffCandidates = [...active].sort((a,b)=>(a.rec.w-a.rec.l)-(b.rec.w-b.rec.l)).slice(0,5);
+  // Overall team standing — to show trophy/X on award rows
+  const usaTotal = rows.filter(p=>p.team==="USA").reduce((a,p)=>a+p.rec.pts,0);
+  const eurTotal = rows.filter(p=>p.team==="EUR").reduce((a,p)=>a+p.rec.pts,0);
+  const winningTeam = usaTotal>eurTotal?"USA":eurTotal>usaTotal?"EUR":null;
 
   const par3Holes = (courseKey) => COURSES[courseKey].par.map((p,i)=>({i,p})).filter(x=>x.p===3);
   function setGreenieHole(roundId,slotIdx,holeIdx){
@@ -2197,6 +2202,7 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
                 {sorted.map((p,i) => {
                   const played = p.rec.w+p.rec.l+p.rec.t > 0;
                   const recColor = p.rec.w>p.rec.l?"#2ecc71":p.rec.l>p.rec.w?"#e55":"#aaa";
+                  const nameColor = p.team==="USA"?"#e0556a":"#FFCD00";
                   const r1team = getTeamScore(p.id,"R1",pairings,scores);
                   const r3team = getTeamScore(p.id,"R3",pairings,scores);
                   const r2ind  = p.gpr["R2"]??null;
@@ -2204,31 +2210,29 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
                   const indRounds = [r2ind,r4ind].filter(v=>v!==null);
                   const grossTotal = indRounds.length===2?indRounds.reduce((a,b)=>a+b,0):null;
                   const netTotal = grossTotal!==null ? grossTotal - (p.hcp*indRounds.length) : null;
-                  // To-par: par of R2(Retreat) + R4(Revenge) = 71+71 = 142
-                  const indPar = (r2ind!==null?71:0)+(r4ind!==null?71:0);
                   const grossToPar = grossTotal!==null ? grossTotal - 142 : null;
                   const netToPar = netTotal!==null ? netTotal - 142 : null;
-                  const fmtPar = (v)=> v===null?null : v===0?"E" : v>0?`+${v}`:`${v}`;
+                  // round-level to par
+                  const r1Par = r1team!==null ? r1team - 71 : null;
+                  const r2Par = r2ind!==null ? r2ind - 71 : null;
+                  const r3Par = r3team!==null ? r3team - 71 : null;
+                  const r4Par = r4ind!==null ? r4ind - 71 : null;
+                  const fmtPar = (v)=> v===null?"—" : v===0?"E" : v>0?`+${v}`:`${v}`;
+                  // under par = red, even/over = cream (per request)
+                  const parColor = (v)=> v===null?"#444" : v<0?"#e55":"var(--cream)";
                   return (
                     <tr key={p.id} className={`rt-row ${i===0&&played?"rt-row-top":""}`}>
                       <td className="rt-sticky rt-td-player">
-                        <span className="rt-flag">{p.team==="USA"?"🇺🇸":"🇪🇺"}</span>
-                        <span className="rt-pname">{p.name}</span>
+                        <span className="rt-pname" style={{color:nameColor}}>{p.name}</span>
                       </td>
                       <td className="rt-td rt-record" style={{color:recColor}}>{played?`${p.rec.w}-${p.rec.l}-${p.rec.t}`:"—"}</td>
                       <td className="rt-td rt-pts">{p.rec.pts>0?p.rec.pts:"—"}</td>
-                      <td className="rt-td rt-team-col rt-dim">{r1team??"—"}</td>
-                      <td className="rt-td rt-score">{r2ind??"—"}</td>
-                      <td className="rt-td rt-team-col rt-dim">{r3team??"—"}</td>
-                      <td className="rt-td rt-score">{r4ind??"—"}</td>
-                      <td className="rt-td rt-sep rt-total">
-                        {grossTotal??"—"}
-                        {grossToPar!==null&&<span className="rt-topar" style={{color:grossToPar<0?"#2ecc71":grossToPar>0?"#e55":"#aaa"}}>{fmtPar(grossToPar)}</span>}
-                      </td>
-                      <td className="rt-td rt-net">
-                        {netTotal??"—"}
-                        {netToPar!==null&&<span className="rt-topar" style={{color:netToPar<0?"#2ecc71":netToPar>0?"#e55":"#aaa"}}>{fmtPar(netToPar)}</span>}
-                      </td>
+                      <td className="rt-td rt-team-col" style={{color:parColor(r1Par)}}>{fmtPar(r1Par)}</td>
+                      <td className="rt-td" style={{color:parColor(r2Par)}}>{fmtPar(r2Par)}</td>
+                      <td className="rt-td rt-team-col" style={{color:parColor(r3Par)}}>{fmtPar(r3Par)}</td>
+                      <td className="rt-td" style={{color:parColor(r4Par)}}>{fmtPar(r4Par)}</td>
+                      <td className="rt-td rt-sep" style={{color:parColor(grossToPar),fontWeight:700}}>{fmtPar(grossToPar)}</td>
+                      <td className="rt-td" style={{color:parColor(netToPar),fontWeight:700}}>{fmtPar(netToPar)}</td>
                       <td className="rt-td rt-money-cell">{p.money>0?`$${p.money.toFixed(0)}`:"—"}</td>
                     </tr>
                   );
@@ -2236,7 +2240,7 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
               </tbody>
             </table>
           </div>
-          <p className="rt-note">R1 &amp; R3 are team scores (Scramble / Greensomes) — shown for reference, not in Gross/Net totals. Gross &amp; Net are R2 + R4 vs par 142.</p>
+          <p className="rt-note">R1–R4 and totals shown as score to par. R1 &amp; R3 are team scores (Scramble / Greensomes), not counted in Gross/Net. Gross &amp; Net = R2 + R4.</p>
 
           {/* Award candidates */}
           {active.length > 0 && (
@@ -2249,16 +2253,20 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
                     <div className="award-sub">Most Valuable Golfer</div>
                   </div>
                 </div>
-                {mvgCandidates.map((p,idx) => (
-                  <div key={p.id} className={`award-row ${idx===0?"award-row-lead":""}`}>
-                    <span className="award-pos">{idx+1}</span>
-                    <span className="award-flag">{p.team==="USA"?"🇺🇸":"🇪🇺"}</span>
-                    <span className="award-name">{p.name}</span>
-                    <span className="award-rec" style={{color:p.rec.w>p.rec.l?"#2ecc71":"#aaa"}}>{p.rec.w}-{p.rec.l}-{p.rec.t}</span>
-                    <span className="award-pts">{p.rec.pts}pt</span>
-                    {p.skinsWon>0&&<span className="award-skin">🎯{p.skinsWon}</span>}
-                  </div>
-                ))}
+                {mvgCandidates.map((p,idx) => {
+                  const onWinner = winningTeam && p.team===winningTeam;
+                  const onLoser = winningTeam && p.team!==winningTeam;
+                  const nameColor = p.team==="USA"?"#e0556a":"#FFCD00";
+                  return (
+                    <div key={p.id} className={`award-row ${idx===0?"award-row-lead":""}`}>
+                      <span className="award-pos">{idx+1}</span>
+                      <span className="award-name" style={{color:nameColor}}>{p.name}{onWinner&&<span className="award-trophy">🏆</span>}{onLoser&&<span className="award-x">✗</span>}</span>
+                      <span className="award-rec" style={{color:p.rec.w>p.rec.l?"#2ecc71":"#aaa"}}>{p.rec.w}-{p.rec.l}-{p.rec.t}</span>
+                      <span className="award-pts">{p.rec.pts}pt</span>
+                      {p.skinsWon>0&&<span className="award-skin">🎯{p.skinsWon}</span>}
+                    </div>
+                  );
+                })}
               </div>
               <div className="award-card rat-card">
                 <div className="award-head">
@@ -2271,13 +2279,15 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
                 {ratliffCandidates.map((p,idx) => {
                   const r2=p.gpr["R2"]??null,r4=p.gpr["R4"]??null;
                   const gt=r2!==null&&r4!==null?r2+r4:null;
+                  const onWinner = winningTeam && p.team===winningTeam;
+                  const onLoser = winningTeam && p.team!==winningTeam;
+                  const nameColor = p.team==="USA"?"#e0556a":"#FFCD00";
                   return (
                     <div key={p.id} className={`award-row ${idx===0?"award-row-lead-rat":""}`}>
                       <span className="award-pos">{idx+1}</span>
-                      <span className="award-flag">{p.team==="USA"?"🇺🇸":"🇪🇺"}</span>
-                      <span className="award-name">{p.name}</span>
+                      <span className="award-name" style={{color:nameColor}}>{p.name}{onWinner&&<span className="award-trophy">🏆</span>}{onLoser&&<span className="award-x">✗</span>}</span>
                       <span className="award-rec" style={{color:p.rec.l>p.rec.w?"#e55":"#aaa"}}>{p.rec.w}-{p.rec.l}-{p.rec.t}</span>
-                      {gt&&<span className="award-gross">{gt>142?`+${gt-142}`:gt-142}</span>}
+                      {gt&&<span className="award-gross">{gt>142?`+${gt-142}`:gt-142===0?"E":gt-142}</span>}
                     </div>
                   );
                 })}
