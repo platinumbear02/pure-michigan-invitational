@@ -431,6 +431,25 @@ button{font-family:inherit;cursor:pointer;}
 .ars-detail{font-size:10px;color:var(--muted);}
 .ars-purse{font-family:'DM Mono',monospace;font-weight:700;color:#7CFC9B;}
 .arch-skin-total{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;font-weight:700;color:var(--gold2);text-align:right;}
+
+.singles-summary{display:flex;align-items:center;justify-content:center;gap:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:10px;}
+.ss-team{display:flex;align-items:center;gap:8px;}
+.ss-flag{font-size:18px;}
+.ss-label{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;letter-spacing:.08em;}
+.ss-pts{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;}
+.ss-vs{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;}
+.singles-list{display:flex;flex-direction:column;gap:5px;}
+.singles-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;}
+.sr-player{font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px;}
+.sr-player-r{justify-content:flex-end;}
+.sr-trophy{font-size:11px;}
+.sr-result{font-family:'DM Mono',monospace;font-size:11px;color:var(--gold);background:rgba(201,162,39,.12);padding:2px 8px;border-radius:10px;white-space:nowrap;}
+
+.award-detail-stats{display:flex;gap:4px;flex-wrap:wrap;flex:1;justify-content:flex-end;margin-right:8px;}
+.ads-chip{font-size:9px;background:rgba(46,204,113,.12);color:#2ecc71;padding:2px 6px;border-radius:8px;font-family:'DM Mono',monospace;white-space:nowrap;}
+.ads-chip-bad{font-size:9px;background:rgba(229,85,85,.12);color:#e55;padding:2px 6px;border-radius:8px;font-family:'DM Mono',monospace;white-space:nowrap;}
+.award-score{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:#f0c040;min-width:30px;text-align:right;}
+.award-score-bad{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:#e55;min-width:30px;text-align:right;}
 </style>
 </head>
 <body>
@@ -563,6 +582,27 @@ const ARCHIVE_2025 = {
     {name:"Shrake", team:"USA", skins:1, purse:"$31.25", detail:"Birdie on 12"},
     {name:"Ron",    team:"USA", skins:1, purse:"$31.25", detail:"Birdie on 14"},
   ],
+  netSkins: [
+    {name:"John", team:"EUR", skins:1, purse:"$62.50", detail:"Eagle on 17"},
+    {name:"Pete", team:"EUR", skins:1, purse:"$62.50", detail:"Eagle on 7"},
+  ],
+  greenies: [
+    {name:"Rich",   team:"USA", purse:"$25.00"},
+    {name:"Vassas", team:"USA", purse:"$25.00"},
+  ],
+  singles: [
+    {usa:"B-Mac",  eur:"John",  result:"1 up",  winner:"USA"},
+    {usa:"Skylar", eur:"Ed",    result:"2 up",  winner:"USA"},
+    {usa:"Phil",   eur:"OP",    result:"2 & 1", winner:"USA"},
+    {usa:"Vassas", eur:"Pete",  result:"3 & 2", winner:"USA"},
+    {usa:"Shrake", eur:"Jimmy", result:"9 & 8", winner:"USA"},
+    {usa:"Louie",  eur:"BK",    result:"4 & 3", winner:"EUR"},
+    {usa:"DZ",     eur:"Pat",   result:"1 up",  winner:"EUR"},
+    {usa:"JP",     eur:"Mike",  result:"2 up",  winner:"EUR"},
+    {usa:"Rich",   eur:"Dan",   result:"1 up",  winner:"EUR"},
+    {usa:"Ron",    eur:"Kevin", result:"7 & 5", winner:"USA"},
+  ],
+  singlesTotal: {usa:6, eur:4},
 };
 
 const HISTORY=[
@@ -2498,10 +2538,66 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
   );
 }
 
+
+// Compute MVG / Ratliff scores from 2025 official archive data
+function computeArchiveAwards() {
+  const A = ARCHIVE_2025;
+  const winningTeam = A.singlesTotal.usa > A.singlesTotal.eur ? "USA" :
+                      A.singlesTotal.eur > A.singlesTotal.usa ? "EUR" : null;
+  // Overall 2025 result: USA won the cup
+  const cupWinner = "USA";
+
+  // Gather per-player stats
+  const stats = {};
+  const ensure = (name, team) => { if(!stats[name]) stats[name]={name,team,grossPos:null,grossTotal:null,netPos:null,netTotal:null,singlesW:0,singlesL:0,skins:0,netSkins:0,greenies:0,purse:0}; return stats[name]; };
+
+  // Gross standings — position & total
+  A.gross.forEach((p,idx)=>{ const s=ensure(p.name,p.team); s.grossPos=idx+1; s.grossTotal=p.total; s.grossToPar=p.toPar; });
+  // Net standings
+  A.net.forEach((p,idx)=>{ const s=ensure(p.name,p.team); s.netPos=idx+1; s.netTotal=p.total; s.netToPar=p.toPar; });
+  // Singles W/L
+  A.singles.forEach(m=>{
+    const u=ensure(m.usa,"USA"), e=ensure(m.eur,"EUR");
+    if(m.winner==="USA"){u.singlesW++;e.singlesL++;} else {e.singlesW++;u.singlesL++;}
+  });
+  // Skins / greenies / purse
+  A.skins.forEach(s=>{const p=ensure(s.name,s.team);p.skins+=s.skins;p.purse+=parseFloat(s.purse.replace("$",""));});
+  A.netSkins.forEach(s=>{const p=ensure(s.name,s.team);p.netSkins+=s.skins;p.purse+=parseFloat(s.purse.replace("$",""));});
+  A.greenies.forEach(g=>{const p=ensure(g.name,g.team);p.greenies++;p.purse+=parseFloat(g.purse.replace("$",""));});
+
+  const players = Object.values(stats);
+  const N = A.gross.length; // field size for normalizing positions
+
+  // MVG score: reward low gross/net finish, singles wins, skins, being on winning team
+  players.forEach(p=>{
+    let score = 0;
+    if(p.grossPos) score += (N - p.grossPos + 1) * 1.5;     // gross finish weight
+    if(p.netPos)   score += (N - p.netPos + 1) * 1.0;        // net finish weight
+    score += p.singlesW * 8;                                  // each singles win big
+    score += (p.skins + p.netSkins) * 4;                      // skins
+    score += p.greenies * 2;                                  // greenies
+    if(p.team === cupWinner) score += 6;                      // winning team boost
+    p.mvgScore = Math.round(score);
+
+    // Ratliff score: reward poor finishes + singles losses
+    let rat = 0;
+    if(p.grossPos) rat += p.grossPos * 1.5;                   // worse gross = higher
+    if(p.netPos)   rat += p.netPos * 1.0;
+    rat += p.singlesL * 8;                                    // singles losses
+    if(p.team !== cupWinner) rat += 4;                        // losing team
+    p.ratScore = Math.round(rat);
+  });
+
+  const mvg = [...players].sort((a,b)=>b.mvgScore-a.mvgScore).slice(0,5);
+  const ratliff = [...players].sort((a,b)=>b.ratScore-a.ratScore).slice(0,5);
+  return {mvg, ratliff, cupWinner};
+}
+
 function Archive2025() {
   const [sub, setSub] = useState("gross");
   const nameColor = (team)=> team==="USA"?"#e0556a":"#FFCD00";
   const data = sub==="gross"?ARCHIVE_2025.gross:ARCHIVE_2025.net;
+  const awards = computeArchiveAwards();
 
   return (
     <div>
@@ -2511,7 +2607,7 @@ function Archive2025() {
       </div>
 
       <div className="res-tabs">
-        {[["gross","Gross"],["net","Net"],["skins","Sun Skins"]].map(([id,lbl])=>(
+        {[["gross","Gross"],["net","Net"],["singles","Singles"],["skins","Skins"],["greenies","Greenies"],["awards","🏅 Awards"]].map(([id,lbl])=>(
           <button key={id} className={`res-tab ${sub===id?"res-tab-on":""}`} onClick={()=>setSub(id)}>{lbl}</button>
         ))}
       </div>
@@ -2549,18 +2645,130 @@ function Archive2025() {
         </div>
       )}
 
+      {sub==="singles"&&(
+        <div>
+          <div className="singles-summary">
+            <div className="ss-team">
+              <span className="ss-flag">🇺🇸</span>
+              <span className="ss-label" style={{color:"#e0556a"}}>USA</span>
+              <span className="ss-pts" style={{color:"#e0556a"}}>{ARCHIVE_2025.singlesTotal.usa}</span>
+            </div>
+            <span className="ss-vs">Singles</span>
+            <div className="ss-team">
+              <span className="ss-pts" style={{color:"#FFCD00"}}>{ARCHIVE_2025.singlesTotal.eur}</span>
+              <span className="ss-label" style={{color:"#FFCD00"}}>EUR</span>
+              <span className="ss-flag">🇪🇺</span>
+            </div>
+          </div>
+          <div className="singles-list">
+            {ARCHIVE_2025.singles.map((m,i)=>(
+              <div key={i} className="singles-row">
+                <span className={`sr-player ${m.winner==="USA"?"sr-win":"sr-lose"}`} style={{color:m.winner==="USA"?"#e0556a":"var(--muted)"}}>
+                  {m.winner==="USA"&&<span className="sr-trophy">🏆</span>}{m.usa}
+                </span>
+                <span className="sr-result">{m.result}</span>
+                <span className={`sr-player sr-player-r ${m.winner==="EUR"?"sr-win":"sr-lose"}`} style={{color:m.winner==="EUR"?"#FFCD00":"var(--muted)"}}>
+                  {m.eur}{m.winner==="EUR"&&<span className="sr-trophy">🏆</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {sub==="skins"&&(
+        <div>
+          <div className="card" style={{marginBottom:10}}>
+            <div className="card-title">🟡 Sunday Gross Skins · $125 pot</div>
+            {ARCHIVE_2025.skins.map((s,i)=>(
+              <div key={i} className="arch-skin-row">
+                <span className="ars-name" style={{color:nameColor(s.team)}}>{s.name}</span>
+                <span className="ars-count">{s.skins} skin{s.skins>1?"s":""}</span>
+                <span className="ars-detail">{s.detail}</span>
+                <span className="ars-purse">{s.purse}</span>
+              </div>
+            ))}
+            <div className="arch-skin-total">Total Purse Allocated: $125.00</div>
+          </div>
+          <div className="card">
+            <div className="card-title">🔵 Sunday Net Skins · $125 pot</div>
+            {ARCHIVE_2025.netSkins.map((s,i)=>(
+              <div key={i} className="arch-skin-row">
+                <span className="ars-name" style={{color:nameColor(s.team)}}>{s.name}</span>
+                <span className="ars-count">{s.skins} skin{s.skins>1?"s":""}</span>
+                <span className="ars-detail">{s.detail}</span>
+                <span className="ars-purse">{s.purse}</span>
+              </div>
+            ))}
+            <div className="arch-skin-total">Total Purse Allocated: $125.00</div>
+          </div>
+        </div>
+      )}
+
+      {sub==="greenies"&&(
         <div className="card">
-          <div className="card-title">🟡 Sunday Gross Skins · $125 pot</div>
-          {ARCHIVE_2025.skins.map((s,i)=>(
-            <div key={i} className="arch-skin-row">
-              <span className="ars-name" style={{color:nameColor(s.team)}}>{s.name}</span>
-              <span className="ars-count">{s.skins} skin{s.skins>1?"s":""}</span>
-              <span className="ars-detail">{s.detail}</span>
-              <span className="ars-purse">{s.purse}</span>
+          <div className="card-title">🟢 Sunday Greenies · $25 each</div>
+          {ARCHIVE_2025.greenies.map((g,i)=>(
+            <div key={i} className="arch-skin-row" style={{gridTemplateColumns:"1fr auto"}}>
+              <span className="ars-name" style={{color:nameColor(g.team)}}>{g.name}</span>
+              <span className="ars-purse">{g.purse}</span>
             </div>
           ))}
-          <div className="arch-skin-total">Total Purse Allocated: $125.00</div>
+          <div className="arch-skin-total">Total Purse Allocated: $50.00</div>
+        </div>
+      )}
+
+      {sub==="awards"&&(
+        <div>
+          <div className="award-section">
+            <div className="award-card mvg-card">
+              <div className="award-head">
+                <span className="award-emoji">🏅</span>
+                <div>
+                  <div className="award-title">MVG Front-Runners</div>
+                  <div className="award-sub">Computed from official results</div>
+                </div>
+              </div>
+              {awards.mvg.map((p,idx)=>(
+                <div key={p.name} className={`award-row ${idx===0?"award-row-lead":""}`}>
+                  <span className="award-pos">{idx+1}</span>
+                  <span className="award-name" style={{color:nameColor(p.team)}}>
+                    {p.name}{p.team===awards.cupWinner?<span className="award-trophy">🏆</span>:<span className="award-x">✗</span>}
+                  </span>
+                  <span className="award-detail-stats">
+                    {p.grossPos&&<span className="ads-chip">G#{p.grossPos}</span>}
+                    {p.singlesW>0&&<span className="ads-chip">{p.singlesW}W singles</span>}
+                    {(p.skins+p.netSkins)>0&&<span className="ads-chip">🎯{p.skins+p.netSkins}</span>}
+                  </span>
+                  <span className="award-score">{p.mvgScore}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="award-card rat-card">
+              <div className="award-head">
+                <span className="award-emoji">🥴</span>
+                <div>
+                  <div className="award-title">Ratliff Front-Runners</div>
+                  <div className="award-sub">Computed from official results</div>
+                </div>
+              </div>
+              {awards.ratliff.map((p,idx)=>(
+                <div key={p.name} className={`award-row ${idx===0?"award-row-lead-rat":""}`}>
+                  <span className="award-pos">{idx+1}</span>
+                  <span className="award-name" style={{color:nameColor(p.team)}}>
+                    {p.name}{p.team===awards.cupWinner?<span className="award-trophy">🏆</span>:<span className="award-x">✗</span>}
+                  </span>
+                  <span className="award-detail-stats">
+                    {p.grossPos&&<span className="ads-chip-bad">G#{p.grossPos}</span>}
+                    {p.singlesL>0&&<span className="ads-chip-bad">{p.singlesL}L singles</span>}
+                  </span>
+                  <span className="award-score-bad">{p.ratScore}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="rt-note" style={{marginTop:10}}>🏅 MVG score rewards low gross/net finish, singles wins, skins, and being on the winning team. 🥴 Ratliff rewards poor finishes and singles losses. These are <strong>suggestions to guide voting</strong> — the group still picks the winners. (2025 actual voted winners: Vassas won MVG, Kevin won Ratliff.)</p>
         </div>
       )}
 
