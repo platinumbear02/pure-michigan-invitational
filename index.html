@@ -419,6 +419,18 @@ button{font-family:inherit;cursor:pointer;}
 .gs-prize{background:rgba(201,162,39,.2);color:var(--gold2);font-size:11px;padding:1px 6px;border-radius:10px;margin-left:4px;}
 .gs-tbd{font-size:12px;color:var(--muted);font-style:italic;}
 
+
+.archive-banner{background:linear-gradient(135deg,#0d2318,#1a3320);border:1px solid rgba(201,162,39,.25);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;text-align:center;}
+.ab-title{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--gold2);}
+.ab-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.archive-btn{width:100%;padding:12px;margin-bottom:11px;background:linear-gradient(135deg,rgba(201,162,39,.15),rgba(201,162,39,.05));border:1.5px solid rgba(201,162,39,.3);border-radius:var(--r);color:var(--gold2);font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:.02em;}
+.arch-skin-row{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.arch-skin-row:last-of-type{border-bottom:none;}
+.ars-name{font-weight:700;}
+.ars-count{font-family:'DM Mono',monospace;font-size:11px;color:var(--gold);}
+.ars-detail{font-size:10px;color:var(--muted);}
+.ars-purse{font-family:'DM Mono',monospace;font-weight:700;color:#7CFC9B;}
+.arch-skin-total{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;font-weight:700;color:var(--gold2);text-align:right;}
 </style>
 </head>
 <body>
@@ -499,6 +511,60 @@ const CAREER = {
   mike:  {years:10,titles:5, w:21,l:13,t:5,sw:7,sl:3,st:0,avg:110.0,tier:"Tier 1B",low:"97 · Torch '17",     high:"126 · Cedar '19",     money:"$1,081",mvg:2,rvg:0},
   kevin: {years:9, titles:5, w:12,l:17,t:6,sw:1,sl:6,st:2,avg:112.7,tier:"Tier 5",low:"105 · Torch '17",     high:"135 · Sundance '19",  money:"$788",  mvg:0,rvg:1},
 };
+
+// ─── 2025 Official Results (pulled from Golf Genius portal) ──────────────────
+const ARCHIVE_2025 = {
+  gross: [
+    {pos:"1", name:"Shrake", team:"USA", toPar:"+34", r:[93,79,75], total:247},
+    {pos:"2", name:"Ron",    team:"USA", toPar:"+36", r:[85,80,84], total:249},
+    {pos:"T3",name:"DZ",     team:"USA", toPar:"+37", r:[84,79,87], total:250},
+    {pos:"T3",name:"OP",     team:"EUR", toPar:"+37", r:[83,82,85], total:250},
+    {pos:"5", name:"John",   team:"EUR", toPar:"+38", r:[85,84,82], total:251},
+    {pos:"6", name:"Vassas", team:"USA", toPar:"+43", r:[88,84,84], total:256},
+    {pos:"7", name:"B-Mac",  team:"USA", toPar:"+47", r:[86,86,88], total:260},
+    {pos:"8", name:"Skylar", team:"USA", toPar:"+51", r:[87,88,89], total:264},
+    {pos:"9", name:"Ed",     team:"EUR", toPar:"+54", r:[84,91,92], total:267},
+    {pos:"10",name:"JP",     team:"USA", toPar:"+60", r:[90,91,92], total:273},
+    {pos:"11",name:"Pete",   team:"EUR", toPar:"+61", r:[93,86,95], total:274},
+    {pos:"12",name:"Phil",   team:"USA", toPar:"+63", r:[91,93,92], total:276},
+    {pos:"13",name:"Pat",    team:"EUR", toPar:"+64", r:[92,94,91], total:277},
+    {pos:"14",name:"BK",     team:"EUR", toPar:"+65", r:[91,99,88], total:278},
+    {pos:"15",name:"Jimmy",  team:"EUR", toPar:"+76", r:[93,90,106],total:289},
+    {pos:"16",name:"Dan",    team:"EUR", toPar:"+82", r:[106,92,97],total:295},
+    {pos:"17",name:"Rich",   team:"USA", toPar:"+87", r:[101,97,102],total:300},
+    {pos:"18",name:"Mike",   team:"EUR", toPar:"+117",r:[116,104,110],total:330},
+    {pos:"19",name:"Louie",  team:"USA", toPar:"+118",r:[113,110,108],total:331},
+    {pos:"20",name:"Kevin",  team:"EUR", toPar:"+125",r:[111,114,113],total:338},
+  ],
+  net: [
+    {pos:"T1", name:"Phil",   team:"USA", toPar:"+3",  r:[71,73,72], total:216},
+    {pos:"T1", name:"Skylar", team:"USA", toPar:"+3",  r:[71,72,73], total:216},
+    {pos:"T3", name:"DZ",     team:"USA", toPar:"+4",  r:[73,68,76], total:217},
+    {pos:"T3", name:"Shrake", team:"USA", toPar:"+4",  r:[83,69,65], total:217},
+    {pos:"T3", name:"Pete",   team:"EUR", toPar:"+4",  r:[74,67,76], total:217},
+    {pos:"6",  name:"Ron",    team:"USA", toPar:"+6",  r:[75,70,74], total:219},
+    {pos:"T7", name:"OP",     team:"EUR", toPar:"+10", r:[74,73,76], total:223},
+    {pos:"T7", name:"Vassas", team:"USA", toPar:"+10", r:[77,73,73], total:223},
+    {pos:"T9", name:"B-Mac",  team:"USA", toPar:"+11", r:[74,74,76], total:224},
+    {pos:"T9", name:"John",   team:"EUR", toPar:"+11", r:[76,75,73], total:224},
+    {pos:"T11",name:"JP",     team:"USA", toPar:"+12", r:[74,75,76], total:225},
+    {pos:"T11",name:"Ed",     team:"EUR", toPar:"+12", r:[70,77,78], total:225},
+    {pos:"13", name:"BK",     team:"EUR", toPar:"+17", r:[75,83,72], total:230},
+    {pos:"14", name:"Rich",   team:"USA", toPar:"+18", r:[78,74,79], total:231},
+    {pos:"15", name:"Dan",    team:"EUR", toPar:"+22", r:[86,72,77], total:235},
+    {pos:"16", name:"Mike",   team:"EUR", toPar:"+24", r:[85,73,79], total:237},
+    {pos:"T17",name:"Pat",    team:"EUR", toPar:"+25", r:[79,81,78], total:238},
+    {pos:"T17",name:"Louie",  team:"USA", toPar:"+25", r:[82,79,77], total:238},
+    {pos:"19", name:"Kevin",  team:"EUR", toPar:"+32", r:[80,83,82], total:245},
+    {pos:"20", name:"Jimmy",  team:"EUR", toPar:"+34", r:[79,76,92], total:247},
+  ],
+  skins: [
+    {name:"John",   team:"EUR", skins:2, purse:"$62.50", detail:"Birdie on 8, Birdie on 17"},
+    {name:"Shrake", team:"USA", skins:1, purse:"$31.25", detail:"Birdie on 12"},
+    {name:"Ron",    team:"USA", skins:1, purse:"$31.25", detail:"Birdie on 14"},
+  ],
+};
+
 const HISTORY=[
   {year:2011,w:"Team Sears",  venue:"A-Ga-Ming",        captains:"Ron"},
   {year:2012,w:"Team Europe", venue:"A-Ga-Ming",        captains:"JP"},
@@ -2432,8 +2498,86 @@ function ResultsPage({scores, pairings, greenieData, setGreenieData, authLevel, 
   );
 }
 
+function Archive2025() {
+  const [sub, setSub] = useState("gross");
+  const nameColor = (team)=> team==="USA"?"#e0556a":"#FFCD00";
+  const data = sub==="gross"?ARCHIVE_2025.gross:ARCHIVE_2025.net;
+
+  return (
+    <div>
+      <div className="archive-banner">
+        <div className="ab-title">2025 PMI — Manistee National</div>
+        <div className="ab-sub">Official Golf Genius Results · USA def. EUR</div>
+      </div>
+
+      <div className="res-tabs">
+        {[["gross","Gross"],["net","Net"],["skins","Sun Skins"]].map(([id,lbl])=>(
+          <button key={id} className={`res-tab ${sub===id?"res-tab-on":""}`} onClick={()=>setSub(id)}>{lbl}</button>
+        ))}
+      </div>
+
+      {(sub==="gross"||sub==="net")&&(
+        <div className="rt-wrap">
+          <table className="rt">
+            <thead>
+              <tr>
+                <th className="rt-sticky rt-th-player" style={{minWidth:90,width:90}}>Player</th>
+                <th className="rt-th">Pos</th>
+                <th className="rt-th">{sub==="gross"?"Gross":"Net"}</th>
+                <th className="rt-th rt-team-col">R1</th>
+                <th className="rt-th">R2</th>
+                <th className="rt-th rt-team-col">R3</th>
+                <th className="rt-th rt-sep">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((p,i)=>(
+                <tr key={i} className={`rt-row ${i===0?"rt-row-top":""}`}>
+                  <td className="rt-sticky rt-td-player">
+                    <span className="rt-pname" style={{color:nameColor(p.team),maxWidth:80}}>{p.name}</span>
+                  </td>
+                  <td className="rt-td">{p.pos}</td>
+                  <td className="rt-td" style={{color:"var(--gold2)",fontWeight:700}}>{p.toPar}</td>
+                  <td className="rt-td rt-team-col">{p.r[0]}</td>
+                  <td className="rt-td">{p.r[1]}</td>
+                  <td className="rt-td rt-team-col">{p.r[2]}</td>
+                  <td className="rt-td rt-sep" style={{color:"var(--cream)",fontWeight:700}}>{p.total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {sub==="skins"&&(
+        <div className="card">
+          <div className="card-title">🟡 Sunday Gross Skins · $125 pot</div>
+          {ARCHIVE_2025.skins.map((s,i)=>(
+            <div key={i} className="arch-skin-row">
+              <span className="ars-name" style={{color:nameColor(s.team)}}>{s.name}</span>
+              <span className="ars-count">{s.skins} skin{s.skins>1?"s":""}</span>
+              <span className="ars-detail">{s.detail}</span>
+              <span className="ars-purse">{s.purse}</span>
+            </div>
+          ))}
+          <div className="arch-skin-total">Total Purse Allocated: $125.00</div>
+        </div>
+      )}
+
+      <p className="rt-note" style={{marginTop:10}}>📊 Pulled live from the official Golf Genius portal. R1 Thu 4-Ball · R2 Fri 4-Ball · R3 Sat Scramble · (Sun Singles tracked separately). This is a proof of concept for auto-importing 2026 results.</p>
+    </div>
+  );
+}
+
 function HistoryPage() {
+  const [showArchive,setShowArchive]=useState(false);
   const usaW=HISTORY.filter(isUSAWin).length, eurW=HISTORY.length-usaW;
+  if(showArchive) return (
+    <div>
+      <button className="back-btn" onClick={()=>setShowArchive(false)}>← Back to History</button>
+      <Archive2025/>
+    </div>
+  );
   const cr=[...allPlayers()].map(p=>({...p,c:CAREER[p.id]})).filter(p=>p.c).sort((a,b)=>b.c.titles-a.c.titles);
   const pr=[...allPlayers()].map(p=>({...p,c:CAREER[p.id]})).filter(p=>p.c&&p.c.years>=3).map(p=>({...p,pct:winPct(p.c.w,p.c.l,p.c.t)})).sort((a,b)=>b.pct-a.pct);
   return (
@@ -2447,6 +2591,9 @@ function HistoryPage() {
         </div>
       </div>
 
+      <button className="archive-btn" onClick={()=>setShowArchive(true)}>
+        📊 View 2025 Official Results (Golf Genius) →
+      </button>
       <div className="card">
         <div className="card-title">📅 Year by Year</div>
         <div className="hist-head">
